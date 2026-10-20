@@ -1,0 +1,272 @@
+[
+  {
+    "id": "CS-M",
+    "filename": "1.Aurora Coastal Fragrance Studio.png",
+    "sha256": "b091d0fd30189b649fc9ff6e7ea0736335a9f1fa9f30f75ae89355b3d6cb6669",
+    "bytes": 2053812,
+    "workspace": "Concept",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "Primary Manual baseline"
+  },
+  {
+    "id": "CS-A",
+    "filename": "1.Aurora AI Fragrance Concept Studio.png",
+    "sha256": "3164e547215372050be65eb64e197e1f250e2f475be6dc1b34c7418e73c31536",
+    "bytes": 1907047,
+    "workspace": "Concept",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "AI panel state"
+  },
+  {
+    "id": "IE-M",
+    "filename": "2.Fragrance Ingredient Explorer Dashboard.png",
+    "sha256": "00422d3b756f23c8b828dcd80c8e5aa99d2ff5f559159088379270e466c9e424",
+    "bytes": 1706776,
+    "workspace": "Ingredient",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "Primary Manual baseline"
+  },
+  {
+    "id": "IE-A",
+    "filename": "2.Ingredient Explorer with AI Creative Partner.png",
+    "sha256": "dd7f65f1626704c5c11487e4a5fde2c8e582aeb69d2ae0f3e10a41d1f9dfa043",
+    "bytes": 1746457,
+    "workspace": "Ingredient",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "AI panel state"
+  },
+  {
+    "id": "IE-U1",
+    "filename": "2.Aurora Ingredient Universe Dashboard.png",
+    "sha256": "14addeba37a56cb09e9fa19eae2d178c2db949a7eef8a9afdcccc42829d24af0",
+    "bytes": 1754099,
+    "workspace": "Ingredient",
+    "mode": "Manual",
+    "role": "Expanded 3D state",
+    "implementation_note": "3D Universe baseline; camera and details variants follow"
+  },
+  {
+    "id": "IE-U2",
+    "filename": "2.Aurora Ingredient Universe Dashboard check.png",
+    "sha256": "5cb8aa21656691d41c69402f0711567dfdec81b59f3dc834f03132a578a7e335",
+    "bytes": 1888714,
+    "workspace": "Ingredient",
+    "mode": "Manual",
+    "role": "3D selection/details state",
+    "implementation_note": "Selected ingredient + details/constituent panel"
+  },
+  {
+    "id": "IE-U3",
+    "filename": "2.Aurora Fragrance Ingredient Universe.png",
+    "sha256": "6ef2620b419316b3e269062f631655601efaa45150fc76f2ff215d4e8f54249b",
+    "bytes": 1820863,
+    "workspace": "Ingredient",
+    "mode": "Manual",
+    "role": "3D expanded variant",
+    "implementation_note": "Alternate camera/composition, not new route"
+  },
+  {
+    "id": "IE-C",
+    "filename": "2.Aurora Ingredient Comparison Dashboard.png",
+    "sha256": "046239d31cc29e191e7dce12410f01212d4b47c93e855e82c7508949cdd50462",
+    "bytes": 1659715,
+    "workspace": "Ingredient",
+    "mode": "Manual",
+    "role": "Comparison overlay",
+    "implementation_note": "Comparison modal/expanded overlay"
+  },
+  {
+    "id": "FS-M1",
+    "filename": "3.Aurora Fragrance Formula Studio.png",
+    "sha256": "96d1426b73ca47eacc48866575ec1ae3e36481d99448c5be89e5a0a4d1b53754",
+    "bytes": 1733250,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "PRIMARY Formula Manual baseline; tab/canvas/table/balance"
+  },
+  {
+    "id": "FS-M2",
+    "filename": "3.Coastal Air Fragrance Studio Dashboard.png",
+    "sha256": "3430f60bdce8a15111d61179052733e9ab5b79e6883566abb0279f218efa5ee5",
+    "bytes": 2121406,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Canvas state",
+    "implementation_note": "Inspiration canvas focus, not competing main"
+  },
+  {
+    "id": "FS-M3",
+    "filename": "3.Aurora Coastal Fragrance Studio Dashboard.png",
+    "sha256": "7ae2042b7254f52560df9dad29099d3d69953350a7053680cf17ab0da7a7825f",
+    "bytes": 1920146,
+    "workspace": "Formula",
+    "mode": "AI Assist",
+    "role": "Canvas state",
+    "implementation_note": "AI contextual partner on Formula canvas; support mode toggle"
+  },
+  {
+    "id": "FS-A",
+    "filename": "3.Aurora AI Fragrance Studio Dashboard.png",
+    "sha256": "24ebec9e87341478c867366a3f08d190242fc0a3dabe20ec490cd7c765a18eac",
+    "bytes": 1796557,
+    "workspace": "Formula",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "PRIMARY Formula AI baseline aligned to Manual shell"
+  },
+  {
+    "id": "FS-3DF",
+    "filename": "3.Aurora Coastal Air Formula Studio 3d formula View.png",
+    "sha256": "9ae15aa47ffa75d1f08593310de8b1b073e44cdf3cbb4916e617e8e6e40bb411",
+    "bytes": 1905627,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Expanded 3D state",
+    "implementation_note": "3D Formula view"
+  },
+  {
+    "id": "FS-3DI",
+    "filename": "3.Aurora 3D Ingredient Formula Studio.png",
+    "sha256": "5aad68290cef4124d9fadffeb3f38eb252c8b7ac67699f531b4fd750702ece0b",
+    "bytes": 1815977,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Expanded 3D state",
+    "implementation_note": "3D Ingredients view"
+  },
+  {
+    "id": "FS-06",
+    "filename": "3.Aurora Fragrance 3D Exploration Studio.png",
+    "sha256": "84dc770d759b4533165e4a7bd729106bf524b9dcc9160a962d5065c43b3bf201",
+    "bytes": 1692561,
+    "workspace": "Formula",
+    "mode": "AI Assist",
+    "role": "Expanded 3D AI state",
+    "implementation_note": "IN SCOPE; 3D exploration + optional hideable suggestions; reconcile alternate internal tabs/sidebar with approved Formula shell"
+  },
+  {
+    "id": "FS-VC",
+    "filename": "3.Aurora Fragrance Formula Comparison Dashboard.png",
+    "sha256": "d9a637155d0f9a936de9c1501598c3f824345d0ae07d1123372ea551b92b9b10",
+    "bytes": 1733006,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Comparison expanded state",
+    "implementation_note": "Version compare, saved immutable versions only"
+  },
+  {
+    "id": "FS-MI1",
+    "filename": "3.Aurora Molecular Inspector Dashboard.png",
+    "sha256": "78a6fa6ac305c5c0a543eed379e02337e2a3f7f3ed8f5caeb26cdb7032c74005",
+    "bytes": 1764524,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Inspector panel",
+    "implementation_note": "Compound-specific single molecular inspector, evidence label"
+  },
+  {
+    "id": "FS-MI2",
+    "filename": "3.Molecular Inspector_ Citrus Formula Dashboard.png",
+    "sha256": "2b36ef83d2a4706b16b1fc478033719343d23eb455fb767d72101efe39c0a154",
+    "bytes": 1714280,
+    "workspace": "Formula",
+    "mode": "Manual",
+    "role": "Inspector alternate state",
+    "implementation_note": "Alternate compound focus, reuse same inspector"
+  },
+  {
+    "id": "VS-M",
+    "filename": "4.Aurora Fragrance Validation Dashboard.png",
+    "sha256": "1de2f553f66e214ba2bb9bf298539ffd6f1388233ff6bf379cc93347215192ac",
+    "bytes": 1629632,
+    "workspace": "Validation",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "Primary Manual baseline"
+  },
+  {
+    "id": "VS-A",
+    "filename": "4.Aurora AI Validation Dashboard.png",
+    "sha256": "2e184a5d4f31c055d6d6265f269b677891344c65bb61a96a3cd349c03b7119c5",
+    "bytes": 1692146,
+    "workspace": "Validation",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "Optional AI explanation, never computed compliance"
+  },
+  {
+    "id": "VS-E",
+    "filename": "4.Aurora Fragrance Validation Dashboard Check.png",
+    "sha256": "bf76990ff3b130ddae5ce8d8c236b0432f37168dd8ea8fe7c1fd994904293538",
+    "bytes": 1593731,
+    "workspace": "Validation",
+    "mode": "Manual",
+    "role": "Evidence expanded state",
+    "implementation_note": "Evidence details, not-assessed defaults"
+  },
+  {
+    "id": "EE-M1",
+    "filename": "5.Aurora Fragrance Experiment Explorer Dashboard.png",
+    "sha256": "78fda1fac836d9b60ddb3a5d522f53eb53ec548fc40fc866ef209061cb5b62a8",
+    "bytes": 1617217,
+    "workspace": "Experiment",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "Primary experiment Manual baseline: history, version compare, branching"
+  },
+  {
+    "id": "EE-A",
+    "filename": "5.Aurora Fragrance Experiment Explorer.png",
+    "sha256": "258df3e5a513e7a79b61053fce6892f7e00b898ee1a145053d66f837800cc6e1",
+    "bytes": 1670891,
+    "workspace": "Experiment",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "AI Creative Partner visible"
+  },
+  {
+    "id": "EE-X",
+    "filename": "5. Aurora Fragrance Experiment Explorer.png",
+    "sha256": "1c47026ac135a88e0c426a60287f0458bcd956b594c5a199928ebc3ebc2e16f7",
+    "bytes": 1621516,
+    "workspace": "Experiment",
+    "mode": "Manual",
+    "role": "Branching expanded state",
+    "implementation_note": "Graph/canvas expanded state"
+  },
+  {
+    "id": "SR-M",
+    "filename": "6.Aurora Coastal Air Review Dashboard.png",
+    "sha256": "6d7a4ac0fc788374556bb18b52d9fd0332539dc3945c7bd04a900e149eda3bdc",
+    "bytes": 1627074,
+    "workspace": "Review",
+    "mode": "Manual",
+    "role": "Main workspace",
+    "implementation_note": "Primary Manual version history and permissions"
+  },
+  {
+    "id": "SR-A",
+    "filename": "6.AI-Assisted Fragrance Review Dashboard.png",
+    "sha256": "bcb3d23f295fbcbe796c25560c7f13b5e140b0e9e3416ef32d217309a7755d3f",
+    "bytes": 1709783,
+    "workspace": "Review",
+    "mode": "AI Assist",
+    "role": "Main workspace mode",
+    "implementation_note": "Optional AI review assistance"
+  },
+  {
+    "id": "SR-X",
+    "filename": "6.Aurora Fragrance Review Dashboard.png",
+    "sha256": "04c8924b10673c7288aed33abef557dd614e3652dd71c4ae414bbd5e6325a915",
+    "bytes": 1631240,
+    "workspace": "Review",
+    "mode": "Manual",
+    "role": "Review expanded state",
+    "implementation_note": "Formula snapshot, comments and status"
+  }
+]

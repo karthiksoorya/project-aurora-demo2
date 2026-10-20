@@ -1,0 +1,31 @@
+{
+  "name": "aurora-fragrance-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project Aurora — Fragrance Creation Studio (local POC: Angular + NestJS + Three.js)",
+  "workspaces": ["apps/api", "apps/web"],
+  "engines": { "node": ">=20.19.0" },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:web": "npm run start -w apps/web",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "start": "concurrently -k -n api,web \"npm:start:api\" \"npm:start:web\"",
+    "start:api": "npm run start:prod -w apps/api",
+    "start:web": "npm run start -w apps/web",
+    "seed:reset": "npm run seed:reset -w apps/api",
+    "test": "npm run test -w apps/api && npm run test -w apps/web",
+    "test:api": "npm run test -w apps/api",
+    "test:web": "npm run test -w apps/web",
+    "e2e": "playwright test",
+    "e2e:report": "playwright show-report e2e/report",
+    "lint": "npm run lint -w apps/api && npm run lint -w apps/web",
+    "format": "prettier --write \"apps/**/src/**/*.{ts,html,scss}\" \"e2e/**/*.ts\"",
+    "fixtures:structures": "python tools/build_structures.py"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.0",
+    "concurrently": "^9.1.0",
+    "prettier": "^3.8.1"
+  }
+}

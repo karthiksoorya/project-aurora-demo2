@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.angular/
+coverage/
+# local demo data (JSON persistence + uploads)
+apps/api/data/
+data/
+e2e/.data/
+e2e/test-results/
+e2e/report/
+e2e/shots/
+*.tmp
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
