@@ -22,15 +22,15 @@ export class FormulasService {
     return { ...d, computed: computeFormula(d.items, (id) => this.catalog.get(id), d.batchSizeG) };
   }
 
-  private requireProject(tx: AuroraTx, projectId: string, roles = ANY_ROLE, action = 'view this formula') {
-    requireRole(tx, projectId, roles, action);
-    const d = tx.drafts.getByProject(projectId);
+  private async requireProject(tx: AuroraTx, projectId: string, roles = ANY_ROLE, action = 'view this formula') {
+    await requireRole(tx, projectId, roles, action);
+    const d = await tx.drafts.getByProject(projectId);
     if (!d) throw notFound('Formula draft', projectId);
     return d;
   }
 
   async getDraft(projectId: string) {
-    const d = await this.uow.read((tx) => this.requireProject(tx, projectId));
+    const d = await this.uow.read(async (tx) => await this.requireProject(tx, projectId));
     return this.view(d);
   }
 
@@ -57,8 +57,8 @@ export class FormulasService {
 
   async updateDraft(projectId: string, dto: UpdateDraftDto) {
     const items = this.validateItems(dto.items);
-    const d = await this.uow.write((tx) => {
-      const cur = this.requireProject(tx, projectId, OWNER, 'edit the formula draft');
+    const d = await this.uow.write(async (tx) => {
+      const cur = await this.requireProject(tx, projectId, OWNER, 'edit the formula draft');
       if (cur.revision !== dto.revision)
         throw conflict('STALE_REVISION', 'Draft was changed elsewhere; reload before saving', {
           expectedRevision: dto.revision,
@@ -73,16 +73,16 @@ export class FormulasService {
         updatedAt: now,
         updatedBy: currentUser().id,
       };
-      tx.drafts.upsert(next);
-      tx.projects.touch(projectId, now);
+      await tx.drafts.upsert(next);
+      await tx.projects.touch(projectId, now);
       return next;
     });
     return this.view(d);
   }
 
   async normalizeDraft(projectId: string, revision: number) {
-    const d = await this.uow.write((tx) => {
-      const cur = this.requireProject(tx, projectId, OWNER, 'normalise the formula');
+    const d = await this.uow.write(async (tx) => {
+      const cur = await this.requireProject(tx, projectId, OWNER, 'normalise the formula');
       if (cur.revision !== revision)
         throw conflict('STALE_REVISION', 'Draft was changed elsewhere', {
           expectedRevision: revision,
@@ -96,8 +96,8 @@ export class FormulasService {
       }
       const now = new Date().toISOString();
       const next = { ...cur, items, revision: cur.revision + 1, updatedAt: now };
-      tx.drafts.upsert(next);
-      audit(
+      await tx.drafts.upsert(next);
+      await audit(
         tx,
         projectId,
         'draft.normalized',
@@ -115,15 +115,15 @@ export class FormulasService {
   }
 
   async createVersion(projectId: string, dto: CreateVersionDto) {
-    return this.uow.write((tx) => {
-      const draft = this.requireProject(tx, projectId, OWNER, 'save formula versions');
+    return this.uow.write(async (tx) => {
+      const draft = await this.requireProject(tx, projectId, OWNER, 'save formula versions');
       if (draft.revision !== dto.expectedDraftRevision)
         throw conflict('STALE_REVISION', 'Draft changed since you opened the save dialog', {
           expectedRevision: dto.expectedDraftRevision,
           currentRevision: draft.revision,
         });
       const label = dto.versionLabel.trim();
-      const existing = tx.versions.listByProject(projectId);
+      const existing = await tx.versions.listByProject(projectId);
       if (existing.some((v) => v.versionLabel.toLowerCase() === label.toLowerCase()))
         throw conflict('DUPLICATE_VERSION_LABEL', `Version label "${label}" already exists`, { versionLabel: label });
       const parentVersionId = dto.parentVersionId ?? draft.basedOnVersionId ?? null;
@@ -168,11 +168,11 @@ export class FormulasService {
         savedBy: currentUser().id,
         savedAt: now,
       };
-      tx.versions.insert(version);
+      await tx.versions.insert(version);
       // the draft continues from the version it just produced
-      tx.drafts.upsert({ ...draft, basedOnVersionId: version.id, updatedAt: now });
-      tx.projects.touch(projectId, now);
-      audit(
+      await tx.drafts.upsert({ ...draft, basedOnVersionId: version.id, updatedAt: now });
+      await tx.projects.touch(projectId, now);
+      await audit(
         tx,
         projectId,
         'version.saved',
@@ -192,9 +192,9 @@ export class FormulasService {
   }
 
   async listVersions(projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view versions');
-      return tx.versions.listByProject(projectId).map((v) => ({
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view versions');
+      return (await tx.versions.listByProject(projectId)).map((v) => ({
         id: v.id,
         versionLabel: v.versionLabel,
         parentVersionId: v.snapshot.parentVersionId,
@@ -210,9 +210,9 @@ export class FormulasService {
   }
 
   async getVersion(versionId: string) {
-    const v = await this.uow.read((tx) => {
-      const found = tx.versions.get(versionId);
-      if (found) requireRole(tx, found.projectId, ANY_ROLE, 'view versions');
+    const v = await this.uow.read(async (tx) => {
+      const found = await tx.versions.get(versionId);
+      if (found) await requireRole(tx, found.projectId, ANY_ROLE, 'view versions');
       return found;
     });
     if (!v) throw notFound('Formula version', versionId);
@@ -316,10 +316,10 @@ export class FormulasService {
   }
 
   async branch(versionId: string, expectedDraftRevision?: number) {
-    const d = await this.uow.write((tx) => {
-      const v = tx.versions.get(versionId);
+    const d = await this.uow.write(async (tx) => {
+      const v = await tx.versions.get(versionId);
       if (!v) throw notFound('Formula version', versionId);
-      const draft = this.requireProject(tx, v.projectId, OWNER, 'load a version into the draft');
+      const draft = await this.requireProject(tx, v.projectId, OWNER, 'load a version into the draft');
       if (expectedDraftRevision !== undefined && draft.revision !== expectedDraftRevision)
         throw conflict('STALE_REVISION', 'Draft changed; reload before loading a version', {
           expectedRevision: expectedDraftRevision,
@@ -340,8 +340,8 @@ export class FormulasService {
         updatedAt: now,
         updatedBy: currentUser().id,
       };
-      tx.drafts.upsert(next);
-      audit(
+      await tx.drafts.upsert(next);
+      await audit(
         tx,
         v.projectId,
         'draft.branched_from_version',

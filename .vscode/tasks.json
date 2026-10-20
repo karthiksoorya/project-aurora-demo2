@@ -1,0 +1,9 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Database: start (Docker)", "type": "npm", "script": "db:up", "problemMatcher": [] },
+    { "label": "Dev: API + web", "type": "npm", "script": "dev", "isBackground": true, "problemMatcher": [] },
+    { "label": "Test: API on PostgreSQL", "type": "npm", "script": "test:pg", "problemMatcher": [] },
+    { "label": "Test: E2E (Playwright)", "type": "npm", "script": "e2e", "problemMatcher": [] }
+  ]
+}

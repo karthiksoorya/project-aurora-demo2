@@ -20,7 +20,12 @@ export function configureApp(app: INestApplication) {
   // Un-prefixed liveness alias required by the M0 gate: GET /health
   const health = app.get(HealthController);
   const http = app.getHttpAdapter();
-  http.get('/health', (_req: Request, res: Response) => res.json(health.health()));
+  http.get('/health', (_req: Request, res: Response) => {
+    health.health().then(
+      (b) => res.json(b),
+      (e: unknown) => res.status(503).json({ status: 'down', error: String(e) }),
+    );
+  });
 }
 
 /** Flatten nested class-validator errors into `[{ path: 'items.0.massPct', messages: [...] }]`. */

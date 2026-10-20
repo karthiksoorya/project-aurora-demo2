@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
+import { ApiService } from '../../core/api/api.service';
 import { ProjectContextService } from '../../core/project-context/project-context.service';
 import { WorkspaceStateService } from '../../core/workspace-state/workspace-state.service';
 import { fam } from '../families';
@@ -166,9 +167,18 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | 'user' | null;
         </button>
         @if (open() === 'help') {
           <div class="menu help-menu" role="dialog" aria-label="About this build">
-            <b>Aurora — local proof of concept (M1)</b>
+            <b>Aurora — local proof of concept (M3)</b>
             <ul class="small">
-              <li>All data is synthetic and stays on this computer (local NestJS API + JSON file).</li>
+              <li data-testid="help-storage">
+                All data is synthetic and stays on this computer (local NestJS API +
+                {{
+                  storage() === 'postgresql'
+                    ? 'PostgreSQL database'
+                    : storage() === 'json-file'
+                      ? 'local JSON file'
+                      : 'local storage'
+                }}).
+              </li>
               <li>
                 Manual mode makes zero AI calls. AI Assist is shown as <i>unavailable</i> until an endpoint is approved
                 (M4).
@@ -238,6 +248,9 @@ export class HeaderBarComponent {
   readonly I = I;
   readonly open = signal<Menu>(null);
   readonly q = signal('');
+  private readonly api = inject(ApiService);
+  /** Persistence adapter reported by /health (shown in "About this build"). */
+  readonly storage = signal<string | null>(null);
   newName = '';
 
   readonly results = computed(() => {
@@ -303,6 +316,11 @@ export class HeaderBarComponent {
 
   toggle(m: Menu) {
     this.open.update((o) => (o === m ? null : m));
+    if (m === 'help' && this.open() === 'help' && !this.storage())
+      void this.api
+        .health()
+        .then((h) => this.storage.set(h.persistence?.adapter ?? null))
+        .catch(() => undefined);
   }
 
   go(r: { kind: 'ingredient' | 'concept' | 'version'; id: string }) {

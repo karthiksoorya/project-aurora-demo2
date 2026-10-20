@@ -43,7 +43,9 @@ export class ApiService {
   }
 
   health() {
-    return this.call(this.http.get<{ status: string }>('/health'));
+    return this.call(
+      this.http.get<{ status: string; persistence?: { adapter: string; schemaVersion: string } }>('/health'),
+    );
   }
   projects() {
     return this.call(this.http.get<ProjectSummary[]>(`${BASE}/projects`));

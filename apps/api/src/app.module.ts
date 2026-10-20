@@ -13,11 +13,13 @@ import { ProjectsController } from './modules/projects/projects.controller';
 import { ProjectsService } from './modules/projects/projects.service';
 import { FixtureCatalogRepository } from './persistence/fixture-catalog';
 import { JsonUnitOfWork } from './persistence/json-store';
+import { persistenceMode } from './persistence/pg/pg-config';
+import { PgUnitOfWork } from './persistence/pg/pg-store';
 import { CatalogRepository, UnitOfWork } from './persistence/repositories';
 
 /**
  * Persistence is bound through abstract tokens (UnitOfWork, CatalogRepository) so the
- * PostgreSQL adapters planned for M3 can be swapped in without touching domain services.
+ * PostgreSQL adapter (M3) is selected by configuration without touching domain services.
  */
 @Module({
   controllers: [
@@ -32,8 +34,11 @@ import { CatalogRepository, UnitOfWork } from './persistence/repositories';
     AiController,
   ],
   providers: [
-    JsonUnitOfWork,
-    { provide: UnitOfWork, useExisting: JsonUnitOfWork },
+    {
+      // AURORA_PERSISTENCE=postgres|json; defaults to postgres when DATABASE_URL is set
+      provide: UnitOfWork,
+      useFactory: () => (persistenceMode() === 'postgres' ? new PgUnitOfWork() : new JsonUnitOfWork()),
+    },
     { provide: CatalogRepository, useClass: FixtureCatalogRepository },
     ProjectsService,
     FormulasService,

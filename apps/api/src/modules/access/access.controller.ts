@@ -30,9 +30,9 @@ export class AccessController {
 
   @Get('projects/:projectId/members')
   members(@Param('projectId', uuid) projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view members');
-      return tx.memberships.listByProject(projectId).map((m) => {
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view members');
+      return (await tx.memberships.listByProject(projectId)).map((m) => {
         const u = userById(m.userId);
         return { ...m, name: u?.name ?? 'Unknown', initials: u?.initials ?? '?', title: u?.title ?? '' };
       });
@@ -41,17 +41,17 @@ export class AccessController {
 
   @Put('projects/:projectId/members/:userId')
   setRole(@Param('projectId', uuid) projectId: string, @Param('userId', uuid) userId: string, @Body() dto: RoleDto) {
-    return this.uow.write((tx) => {
-      requireRole(tx, projectId, OWNER, 'change project roles');
+    return this.uow.write(async (tx) => {
+      await requireRole(tx, projectId, OWNER, 'change project roles');
       if (!userById(userId)) throw badRequest('Unknown user', { userId });
-      const members = tx.memberships.listByProject(projectId);
+      const members = await tx.memberships.listByProject(projectId);
       const owners = members.filter((m) => m.role === 'owner');
       if (dto.role !== 'owner' && owners.length === 1 && owners[0].userId === userId)
         throw new DomainError(422, 'LAST_OWNER', 'A project must keep at least one owner');
       const prev = members.find((m) => m.userId === userId)?.role ?? null;
       const now = new Date().toISOString();
-      tx.memberships.upsert({ projectId, userId, role: dto.role, updatedAt: now });
-      audit(
+      await tx.memberships.upsert({ projectId, userId, role: dto.role, updatedAt: now });
+      await audit(
         tx,
         projectId,
         'access.role_changed',

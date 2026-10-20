@@ -56,10 +56,10 @@ blocked M0/M1; each item is a candidate for review.
 | 6 | Local demo identity | Four simulated users (confirmed): Senior Perfumer (owner), Product Development & Regulatory Affairs (reviewers), Marketing (viewer); header switcher; **not authentication** |
 | 7 | Formula completion rule | Drafts may be any total; saving a version is **allowed** for incomplete/over totals and the snapshot is labelled `incomplete`/`over`; nothing is normalised without the explicit Normalize action. Saving incomplete versions is allowed and labelled (confirmed); validation FC-001 **fails** them. |
 | — | Mode scope | Manual/AI mode is global (one header switch); AI panel visibility is remembered per workspace |
-| — | UI state persistence | Mode, canvas, selection, cameras, filters persist per browser (localStorage); business data persists in the API |
+| — | UI state persistence | Mode, canvas, selection, cameras, filters persist per browser (localStorage); business data persists in the API (PostgreSQL from M3) |
 
 ## D. Known limitations
-* JSON persistence is single-process; concurrent editing by several users is out of scope until M3.
+* PostgreSQL is the default store from M3 (multi-process safe, writes serialised by an advisory lock). The JSON-file fallback remains single-process.
 * Registry verification of identifiers (CAS/PubChem) is pending — the build is offline by design.
 * Roles are simulated via a request header; anyone with local access can act as any user. Real auth is out of scope for the POC.
 * Regulatory/allergen rule sets are placeholders until a licensed, verified dataset is supplied.

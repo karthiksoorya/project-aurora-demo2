@@ -1,13 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { promises as fs, existsSync, mkdirSync } from 'node:fs';
+import { accessSync, constants, promises as fs, existsSync, mkdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { sha256Canonical } from '../common/hash';
 import type { DbState } from '../domain/types';
 import { buildSeed, defaultMemberships } from '../fixtures/seed';
-import type { AuroraTx } from './repositories';
+import type { AuroraTx, PersistenceHealth } from './repositories';
 import { UnitOfWork } from './repositories';
 
 const clone = <T>(v: T): T => structuredClone(v);
+type Syncify<R> = { [K in keyof R]: R[K] extends (...a: infer A) => Promise<infer T> ? (...a: A) => T : R[K] };
+type SyncTx = { [K in keyof AuroraTx]: Syncify<AuroraTx[K]> };
 
 /** Forward-only schema upgrade of the JSON file (v1 -> v2 adds access, validation, experiments, reviews). */
 export function upgrade(raw: { schemaVersion: number }): { state: DbState; migrated: boolean } {
@@ -80,15 +82,31 @@ export class JsonUnitOfWork extends UnitOfWork implements OnModuleInit {
     if (mismatched.length) this.log.error(`Version hash mismatch: ${mismatched.join(', ')}`);
   }
 
-  read<T>(work: (tx: AuroraTx) => T): Promise<T> {
-    // reads wait for in-flight writes so callers observe their own writes
-    return this.queue.then(() => clone(work(this.bind(this.state))));
+  health(): Promise<PersistenceHealth> {
+    let writable = true;
+    try {
+      accessSync(path.dirname(this.file), constants.W_OK);
+    } catch {
+      writable = false;
+    }
+    return Promise.resolve({
+      adapter: 'json-file',
+      location: path.basename(this.file),
+      writable,
+      schemaVersion: 'json-v2',
+      versionIntegrity: this.integrity,
+    });
   }
 
-  write<T>(work: (tx: AuroraTx) => T): Promise<T> {
+  read<T>(work: (tx: AuroraTx) => Promise<T>): Promise<T> {
+    // reads wait for in-flight writes so callers observe their own writes
+    return this.queue.then(async () => clone(await work(this.bind(this.state))));
+  }
+
+  write<T>(work: (tx: AuroraTx) => Promise<T>): Promise<T> {
     const run = this.queue.then(async () => {
       const working = clone(this.state);
-      const result = work(this.bind(working));
+      const result = await work(this.bind(working));
       await this.persist(working);
       this.state = working;
       return clone(result);
@@ -109,7 +127,20 @@ export class JsonUnitOfWork extends UnitOfWork implements OnModuleInit {
     await fs.rename(tmp, this.file);
   }
 
+  /** Adapts the synchronous in-memory repositories to the async repository contract. */
   private bind(s: DbState): AuroraTx {
+    const sync = this.bindSync(s) as unknown as Record<string, Record<string, (...a: unknown[]) => unknown>>;
+    return Object.fromEntries(
+      Object.entries(sync).map(([repo, methods]) => [
+        repo,
+        Object.fromEntries(
+          Object.entries(methods).map(([k, fn]) => [k, (...a: unknown[]) => Promise.resolve().then(() => fn(...a))]),
+        ),
+      ]),
+    ) as unknown as AuroraTx;
+  }
+
+  private bindSync(s: DbState): SyncTx {
     return {
       projects: {
         list: () => s.projects.map(clone),
@@ -150,9 +181,14 @@ export class JsonUnitOfWork extends UnitOfWork implements OnModuleInit {
       },
       audit: {
         append: (e) => void s.audit.push(clone(e)),
-        listByProject: (projectId, limit) =>
+        listByProject: (projectId, limit, f) =>
           s.audit
-            .filter((e) => e.projectId === projectId)
+            .filter(
+              (e) =>
+                e.projectId === projectId &&
+                (!f?.actionPrefix || e.action.startsWith(f.actionPrefix)) &&
+                (!f?.targetId || e.targetId === f.targetId),
+            )
             .slice(-limit)
             .reverse()
             .map(clone),

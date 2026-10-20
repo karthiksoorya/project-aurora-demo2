@@ -2,8 +2,10 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { configureApp } from './bootstrap';
+import { loadEnv } from './common/env';
 
 async function bootstrap() {
+  loadEnv(); // optional .env (DATABASE_URL etc.); real environment variables take precedence
   const app = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error'] });
   configureApp(app);
   // Private-first: bind to loopback only unless explicitly overridden.

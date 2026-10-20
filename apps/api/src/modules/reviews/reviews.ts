@@ -59,17 +59,17 @@ export class ReviewsService {
   constructor(private readonly uow: UnitOfWork) {}
 
   create(dto: CreateReviewDto) {
-    return this.uow.write((tx) => {
-      const v = tx.versions.get(dto.formulaVersionId);
+    return this.uow.write(async (tx) => {
+      const v = await tx.versions.get(dto.formulaVersionId);
       if (!v) throw notFound('Formula version', dto.formulaVersionId);
-      requireRole(tx, v.projectId, OWNER, 'request reviews');
+      await requireRole(tx, v.projectId, OWNER, 'request reviews');
       const me = currentUser();
       const ids = new Set<string>();
       for (const r of dto.reviewers) {
         if (ids.has(r.userId)) throw badRequest('Reviewer listed twice', { userId: r.userId });
         ids.add(r.userId);
         if (r.userId === me.id) throw badRequest('You cannot review your own request');
-        const m = tx.memberships.get(v.projectId, r.userId);
+        const m = await tx.memberships.get(v.projectId, r.userId);
         if (!m) throw badRequest('Reviewer is not a project member', { userId: r.userId });
         if (m.role !== 'reviewer')
           throw new DomainError(
@@ -96,8 +96,8 @@ export class ReviewsService {
         createdAt: now,
         updatedAt: now,
       };
-      tx.reviews.insert(review);
-      audit(
+      await tx.reviews.insert(review);
+      await audit(
         tx,
         v.projectId,
         'review.requested',
@@ -114,16 +114,16 @@ export class ReviewsService {
     });
   }
 
-  private load(tx: AuroraTx, id: string) {
-    const r = tx.reviews.get(id);
+  private async load(tx: AuroraTx, id: string) {
+    const r = await tx.reviews.get(id);
     if (!r) throw notFound('Review', id);
     return r;
   }
 
   comment(id: string, dto: CommentDto) {
-    return this.uow.write((tx) => {
-      const r = this.load(tx, id);
-      const m = requireRole(tx, r.projectId, ['owner', 'reviewer'], 'comment on reviews');
+    return this.uow.write(async (tx) => {
+      const r = await this.load(tx, id);
+      const m = await requireRole(tx, r.projectId, ['owner', 'reviewer'], 'comment on reviews');
       const me = currentUser();
       if (m.role === 'reviewer' && !r.reviewers.some((x) => x.userId === me.id))
         throw forbid('Only reviewers invited to this request can comment');
@@ -138,16 +138,24 @@ export class ReviewsService {
         createdAt: now,
       };
       const next = { ...r, comments: [...r.comments, c], updatedAt: now };
-      tx.reviews.update(next);
-      audit(tx, r.projectId, 'review.commented', 'review', r.id, { versionLabel: r.versionLabel, kind: c.kind }, now);
+      await tx.reviews.update(next);
+      await audit(
+        tx,
+        r.projectId,
+        'review.commented',
+        'review',
+        r.id,
+        { versionLabel: r.versionLabel, kind: c.kind },
+        now,
+      );
       return next;
     });
   }
 
   decide(id: string, dto: DecisionDto) {
-    return this.uow.write((tx) => {
-      const r = this.load(tx, id);
-      requireRole(tx, r.projectId, ['reviewer'], 'approve or reject');
+    return this.uow.write(async (tx) => {
+      const r = await this.load(tx, id);
+      await requireRole(tx, r.projectId, ['reviewer'], 'approve or reject');
       const me = currentUser();
       const slot = r.reviewers.find((x) => x.userId === me.id);
       if (!slot || slot.permission !== 'approve') throw forbid('You do not have approval permission on this review');
@@ -177,8 +185,8 @@ export class ReviewsService {
               ? 'approved'
               : 'submitted';
       const next = { ...r, decisions, status, updatedAt: now };
-      tx.reviews.update(next);
-      audit(
+      await tx.reviews.update(next);
+      await audit(
         tx,
         r.projectId,
         'review.decision',
@@ -192,28 +200,28 @@ export class ReviewsService {
   }
 
   withdraw(id: string) {
-    return this.uow.write((tx) => {
-      const r = this.load(tx, id);
-      requireRole(tx, r.projectId, OWNER, 'withdraw reviews');
+    return this.uow.write(async (tx) => {
+      const r = await this.load(tx, id);
+      await requireRole(tx, r.projectId, OWNER, 'withdraw reviews');
       if (!OPEN.includes(r.status)) throw new DomainError(422, 'REVIEW_CLOSED', `Review is already ${r.status}`);
       const next = { ...r, status: 'withdrawn' as const, updatedAt: new Date().toISOString() };
-      tx.reviews.update(next);
-      audit(tx, r.projectId, 'review.withdrawn', 'review', r.id, { versionLabel: r.versionLabel });
+      await tx.reviews.update(next);
+      await audit(tx, r.projectId, 'review.withdrawn', 'review', r.id, { versionLabel: r.versionLabel });
       return next;
     });
   }
 
   list(projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view reviews');
-      return tx.reviews.listByProject(projectId);
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view reviews');
+      return await tx.reviews.listByProject(projectId);
     });
   }
 
   async get(id: string) {
-    const r = await this.uow.read((tx) => {
-      const x = tx.reviews.get(id);
-      if (x) requireRole(tx, x.projectId, ANY_ROLE, 'view reviews');
+    const r = await this.uow.read(async (tx) => {
+      const x = await tx.reviews.get(id);
+      if (x) await requireRole(tx, x.projectId, ANY_ROLE, 'view reviews');
       return x;
     });
     if (!r) throw notFound('Review', id);

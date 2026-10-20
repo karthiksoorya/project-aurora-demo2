@@ -1,16 +1,14 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import * as path from 'node:path';
 import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../bootstrap';
 import { ingredientIdBySlug } from '../fixtures/ingredients';
 import { SEED_PROJECT_ID } from '../fixtures/seed';
+import { setupStore, type TestStore } from './harness';
 
 const P = SEED_PROJECT_ID;
-let dir: string;
+let store: TestStore;
 let app: INestApplication;
 
 async function boot() {
@@ -23,13 +21,12 @@ async function boot() {
 const http = () => request(app.getHttpServer());
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(tmpdir(), 'aurora-api-'));
-  process.env.AURORA_DATA_DIR = dir;
+  store = await setupStore('aurora-api');
   app = await boot();
 });
 afterAll(async () => {
   await app.close();
-  rmSync(dir, { recursive: true, force: true });
+  await store.cleanup();
 });
 
 describe('health & envelope', () => {
@@ -203,10 +200,7 @@ describe('formula draft, versions, compare (A4, A5, A12, A13)', () => {
 
   it('tampering with a stored snapshot is detected on load', async () => {
     await app.close();
-    const file = path.join(dir, 'aurora-db.json');
-    const db = JSON.parse(readFileSync(file, 'utf8'));
-    db.versions[0].snapshot.items[0].massPct = '99.000000';
-    writeFileSync(file, JSON.stringify(db));
+    await store.tamperFirstVersion();
     app = await boot();
     const h = (await http().get('/health').expect(200)).body;
     expect(h.status).toBe('degraded');

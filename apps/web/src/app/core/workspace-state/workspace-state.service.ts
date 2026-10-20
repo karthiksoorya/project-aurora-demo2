@@ -124,23 +124,27 @@ export class WorkspaceStateService {
   readonly recentIngredientIds = signal<string[]>(this.initial.recentIngredientIds);
 
   constructor() {
-    effect(() => {
-      const s: Persisted = {
-        v: 1,
-        mode: this.mode(),
-        aiPanel: this.aiPanel(),
-        selectedIngredientId: this.selectedIngredientId(),
-        formula: this.formula(),
-        ingredients: this.ingredients(),
-        cameras: this.cameras(),
-        recentIngredientIds: this.recentIngredientIds(),
-      };
-      try {
-        localStorage.setItem(KEY, JSON.stringify(s));
-      } catch {
-        /* storage unavailable: state stays in memory */
-      }
-    });
+    effect(() => this.save());
+    // effects flush asynchronously; also save synchronously when the page is being left (reload / close)
+    if (typeof window !== 'undefined') window.addEventListener('pagehide', () => this.save());
+  }
+
+  private save() {
+    const s: Persisted = {
+      v: 1,
+      mode: this.mode(),
+      aiPanel: this.aiPanel(),
+      selectedIngredientId: this.selectedIngredientId(),
+      formula: this.formula(),
+      ingredients: this.ingredients(),
+      cameras: this.cameras(),
+      recentIngredientIds: this.recentIngredientIds(),
+    };
+    try {
+      localStorage.setItem(KEY, JSON.stringify(s));
+    } catch {
+      /* storage unavailable: state stays in memory */
+    }
   }
 
   setMode(m: Mode) {

@@ -25,12 +25,39 @@ export async function waitForHealth(timeoutMs = 20_000) {
   }
 }
 
-/** Start the built NestJS API as a child process on the e2e port with an isolated data dir. */
+/**
+ * Optional: run the whole browser suite on PostgreSQL. E2E_DATABASE_URL is an admin connection
+ * (e.g. postgres://aurora:aurora@127.0.0.1:5432/postgres); a dedicated database "aurora_e2e" is recreated per run.
+ */
+export const E2E_PG_ADMIN = process.env.E2E_DATABASE_URL;
+function e2eDbUrl() {
+  const u = new URL(E2E_PG_ADMIN!);
+  u.pathname = '/aurora_e2e';
+  return u.toString();
+}
+async function resetDatabase() {
+  // pg is a dependency of apps/api (hoisted by npm workspaces)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Client } = require('pg') as typeof import('pg');
+  const c = new Client({ connectionString: E2E_PG_ADMIN });
+  await c.connect();
+  await c.query('DROP DATABASE IF EXISTS aurora_e2e WITH (FORCE)');
+  await c.query('CREATE DATABASE aurora_e2e');
+  await c.end();
+}
+
+/** Start the built NestJS API as a child process on the e2e port with an isolated data dir (and database). */
 export async function startApi(opts: { reset?: boolean } = {}) {
-  if (opts.reset) rmSync(DATA_DIR, { recursive: true, force: true });
+  if (opts.reset) {
+    rmSync(DATA_DIR, { recursive: true, force: true });
+    if (E2E_PG_ADMIN) await resetDatabase();
+  }
   if (!existsSync(API_MAIN)) throw new Error('Build the API first: npm run build -w apps/api');
+  const persistence = E2E_PG_ADMIN
+    ? { AURORA_PERSISTENCE: 'postgres', DATABASE_URL: e2eDbUrl() }
+    : { AURORA_PERSISTENCE: 'json', DATABASE_URL: '' };
   child = spawn(process.execPath, [API_MAIN], {
-    env: { ...process.env, AURORA_API_PORT: String(E2E_API_PORT), AURORA_DATA_DIR: DATA_DIR },
+    env: { ...process.env, ...persistence, AURORA_API_PORT: String(E2E_API_PORT), AURORA_DATA_DIR: DATA_DIR },
     stdio: 'ignore',
     detached: false,
   });

@@ -39,10 +39,10 @@ export class ValidationsService {
   }
 
   run(dto: CreateValidationDto) {
-    return this.uow.write((tx) => {
-      const v = tx.versions.get(dto.formulaVersionId);
+    return this.uow.write(async (tx) => {
+      const v = await tx.versions.get(dto.formulaVersionId);
       if (!v) throw notFound('Formula version', dto.formulaVersionId);
-      requireRole(tx, v.projectId, OWNER, 'run validations');
+      await requireRole(tx, v.projectId, OWNER, 'run validations');
       const ids = dto.ruleSetIds ?? RULE_SETS.map((r) => r.id);
       const sets = RULE_SETS.filter((r) => ids.includes(r.id));
       if (!sets.length) throw badRequest('No known rule set selected');
@@ -72,8 +72,8 @@ export class ValidationsService {
         evaluatedAt: now,
         engineVersion: VALIDATION_ENGINE_VERSION,
       };
-      tx.validations.insert(run);
-      audit(
+      await tx.validations.insert(run);
+      await audit(
         tx,
         v.projectId,
         'validation.run',
@@ -88,16 +88,16 @@ export class ValidationsService {
         },
         now,
       );
-      return this.annotate(tx, run);
+      return await this.annotate(tx, run);
     });
   }
 
   /** Stale-result behaviour: a run is tied to an immutable version; we flag newer versions / changed draft / catalog. */
-  private annotate(tx: AuroraTx, run: ValidationRun) {
-    const versions = tx.versions.listByProject(run.projectId);
+  private async annotate(tx: AuroraTx, run: ValidationRun) {
+    const versions = await tx.versions.listByProject(run.projectId);
     const idx = versions.findIndex((x) => x.id === run.formulaVersionId);
     const v = versions[idx];
-    const draft = tx.drafts.getByProject(run.projectId);
+    const draft = await tx.drafts.getByProject(run.projectId);
     const newer = versions.slice(idx + 1).map((x) => x.versionLabel);
     const reasons: string[] = [];
     if (newer.length) reasons.push(`Newer saved version(s): ${newer.join(', ')}`);
@@ -111,21 +111,23 @@ export class ValidationsService {
   }
 
   list(projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view validations');
-      return tx.validations.listByProject(projectId).map((r) => {
-        const { findings: _f, ...head } = this.annotate(tx, r);
-        return head;
-      });
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view validations');
+      const out = [];
+      for (const r of await tx.validations.listByProject(projectId)) {
+        const { findings: _f, ...head } = await this.annotate(tx, r);
+        out.push(head);
+      }
+      return out;
     });
   }
 
   async get(runId: string) {
-    const r = await this.uow.read((tx) => {
-      const run = tx.validations.get(runId);
+    const r = await this.uow.read(async (tx) => {
+      const run = await tx.validations.get(runId);
       if (!run) return undefined;
-      requireRole(tx, run.projectId, ANY_ROLE, 'view validations');
-      return this.annotate(tx, run);
+      await requireRole(tx, run.projectId, ANY_ROLE, 'view validations');
+      return await this.annotate(tx, run);
     });
     if (!r) throw notFound('Validation run', runId);
     return r;

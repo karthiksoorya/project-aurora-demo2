@@ -1,17 +1,17 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
 import request from 'supertest';
 import { AppModule } from '../app.module';
 import { configureApp } from '../bootstrap';
 import { USERS } from '../common/request-context';
 import { SEED_PROJECT_ID } from '../fixtures/seed';
+import { setupStore, usingPg, type TestStore } from './harness';
 
 const P = SEED_PROJECT_ID;
 const [OWNER, PD, RA, MK] = USERS.map((u) => u.id);
-let dir: string;
+let store: TestStore;
 let app: INestApplication;
 
 async function boot() {
@@ -28,13 +28,12 @@ const as = (user: string) => ({
 });
 
 beforeAll(async () => {
-  dir = mkdtempSync(path.join(tmpdir(), 'aurora-m2-'));
-  process.env.AURORA_DATA_DIR = dir;
+  store = await setupStore('aurora-m2');
   app = await boot();
 });
 afterAll(async () => {
   await app.close();
-  rmSync(dir, { recursive: true, force: true });
+  await store.cleanup();
 });
 
 async function saveVersion(label: string, mutate?: (items: { massPct: string }[]) => void) {
@@ -291,9 +290,9 @@ describe('reviews, comments, decisions, audit (A10, A11)', () => {
 });
 
 describe('schema upgrade v1 -> v2', () => {
-  it('adds default memberships and keeps a backup', async () => {
+  (usingPg() ? it.skip : it)('adds default memberships and keeps a backup', async () => {
     await app.close();
-    const file = path.join(dir, 'aurora-db.json');
+    const file = path.join(store.dir, 'aurora-db.json');
     const db = JSON.parse(readFileSync(file, 'utf8'));
     const v1 = {
       schemaVersion: 1,

@@ -43,10 +43,10 @@ export class ExperimentsService {
   constructor(private readonly uow: UnitOfWork) {}
 
   create(dto: CreateExperimentDto) {
-    return this.uow.write((tx) => {
-      const v = tx.versions.get(dto.formulaVersionId);
+    return this.uow.write(async (tx) => {
+      const v = await tx.versions.get(dto.formulaVersionId);
       if (!v) throw notFound('Formula version', dto.formulaVersionId);
-      requireRole(tx, v.projectId, OWNER, 'create experiments');
+      await requireRole(tx, v.projectId, OWNER, 'create experiments');
       const now = new Date().toISOString();
       const e: Experiment = {
         id: newId(),
@@ -60,8 +60,8 @@ export class ExperimentsService {
         createdBy: currentUser().id,
         createdAt: now,
       };
-      tx.experiments.insert(e);
-      audit(
+      await tx.experiments.insert(e);
+      await audit(
         tx,
         v.projectId,
         'experiment.created',
@@ -75,10 +75,10 @@ export class ExperimentsService {
   }
 
   addObservation(id: string, dto: ObservationDto) {
-    return this.uow.write((tx) => {
-      const e = tx.experiments.get(id);
+    return this.uow.write(async (tx) => {
+      const e = await tx.experiments.get(id);
       if (!e) throw notFound('Experiment', id);
-      requireRole(tx, e.projectId, ['owner', 'reviewer'], 'record observations');
+      await requireRole(tx, e.projectId, ['owner', 'reviewer'], 'record observations');
       if (dto.kind === 'measurement' && !dto.measurement)
         throw new DomainError(400, 'VALIDATION_FAILED', 'A measurement needs quantity, value, unit and method');
       if (dto.kind !== 'measurement' && dto.measurement)
@@ -98,8 +98,8 @@ export class ExperimentsService {
         observations: [...e.observations, o],
         status: e.status === 'planned' ? ('in_progress' as const) : e.status,
       };
-      tx.experiments.update(next);
-      audit(
+      await tx.experiments.update(next);
+      await audit(
         tx,
         e.projectId,
         'experiment.observation_added',
@@ -113,28 +113,28 @@ export class ExperimentsService {
   }
 
   setStatus(id: string, dto: StatusDto) {
-    return this.uow.write((tx) => {
-      const e = tx.experiments.get(id);
+    return this.uow.write(async (tx) => {
+      const e = await tx.experiments.get(id);
       if (!e) throw notFound('Experiment', id);
-      requireRole(tx, e.projectId, OWNER, 'change experiment status');
+      await requireRole(tx, e.projectId, OWNER, 'change experiment status');
       const next = { ...e, status: dto.status };
-      tx.experiments.update(next);
-      audit(tx, e.projectId, 'experiment.status_changed', 'experiment', e.id, { from: e.status, to: dto.status });
+      await tx.experiments.update(next);
+      await audit(tx, e.projectId, 'experiment.status_changed', 'experiment', e.id, { from: e.status, to: dto.status });
       return next;
     });
   }
 
   list(projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view experiments');
-      return tx.experiments.listByProject(projectId);
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view experiments');
+      return await tx.experiments.listByProject(projectId);
     });
   }
 
   async get(id: string) {
-    const e = await this.uow.read((tx) => {
-      const x = tx.experiments.get(id);
-      if (x) requireRole(tx, x.projectId, ANY_ROLE, 'view experiments');
+    const e = await this.uow.read(async (tx) => {
+      const x = await tx.experiments.get(id);
+      if (x) await requireRole(tx, x.projectId, ANY_ROLE, 'view experiments');
       return x;
     });
     if (!e) throw notFound('Experiment', id);
@@ -143,15 +143,15 @@ export class ExperimentsService {
 
   /** Version ancestry graph with linked records — feeds the branching canvas (EE-X) and review screens. */
   lineage(projectId: string) {
-    return this.uow.read((tx) => {
-      requireRole(tx, projectId, ANY_ROLE, 'view lineage');
-      const exps = tx.experiments.listByProject(projectId);
-      const vals = tx.validations.listByProject(projectId);
-      const revs = tx.reviews.listByProject(projectId);
-      const draft = tx.drafts.getByProject(projectId);
+    return this.uow.read(async (tx) => {
+      await requireRole(tx, projectId, ANY_ROLE, 'view lineage');
+      const exps = await tx.experiments.listByProject(projectId);
+      const vals = await tx.validations.listByProject(projectId);
+      const revs = await tx.reviews.listByProject(projectId);
+      const draft = await tx.drafts.getByProject(projectId);
       return {
         draftBasedOnVersionId: draft?.basedOnVersionId ?? null,
-        nodes: tx.versions.listByProject(projectId).map((v) => ({
+        nodes: (await tx.versions.listByProject(projectId)).map((v) => ({
           id: v.id,
           versionLabel: v.versionLabel,
           parentVersionId: v.snapshot.parentVersionId,

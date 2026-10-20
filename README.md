@@ -3,29 +3,46 @@
 A bright, colourful, desktop-first creative tool for perfumers with **six workspaces** — Concept Studio,
 Ingredient Explorer, Formula Studio, Validation Studio, Experiment Explorer and Share & Review.
 This repository is an independent implementation of the handoff package (`docs/handoff/`), currently at
-**milestone M1** (M0 + M1 complete).
+**milestone M3** (M0–M3 complete: Manual workflow end to end on PostgreSQL).
 
 | Layer | Technology |
 |---|---|
 | Frontend | Angular 21 (standalone components, signals, zoneless), SCSS design tokens |
 | 3D | Three.js 0.181 (WebGL, OrbitControls, CSS2D labels) |
-| Backend | NestJS 11, class-validator DTOs, JSON-file persistence (atomic writes) |
+| Backend | NestJS 11, class-validator DTOs |
+| Database | PostgreSQL 16 (Docker Compose), versioned SQL migrations, `pg` driver · JSON-file fallback for zero-setup demos |
 | Tests | Jest (API), Vitest (web units), Playwright 1.56 (browser E2E) |
 
-> Everything runs on your machine. The API binds to `127.0.0.1` only, there is no AI service, no
-> database server, no telemetry and no outbound network call. All data is synthetic ("Coastal Air").
+> Everything runs on your machine. The API and the database bind to `127.0.0.1` only; there is no AI service,
+> no telemetry and no outbound network call. All data is synthetic ("Coastal Air").
 
 ---
 
 ## 1. Run it (Windows 11, macOS or Linux)
 
-Prerequisites: **Node.js 20.19+ or 22.12+** (LTS) and npm. Nothing else.
+Prerequisites: **Node.js 20.19+ or 22.12+** (LTS), npm, and **Docker Desktop** for PostgreSQL.
 
 ```powershell
 # from the repository root
 npm ci                    # installs both apps from the lockfile
+copy .env.example .env    # macOS/Linux: cp .env.example .env   (sets DATABASE_URL)
+npm run db:up             # starts PostgreSQL 16 in Docker on 127.0.0.1:5432 and waits until healthy
 npm run dev               # API on http://127.0.0.1:3000  +  web on http://127.0.0.1:4200
 ```
+
+On first start the API applies the SQL migrations and seeds the "Coastal Air" demo project into the empty
+database. `GET /health` shows `"adapter": "postgresql"` and the applied schema version.
+
+**No Docker?** Skip `.env` and `db:up`: without `DATABASE_URL` the API uses the local JSON file exactly as in
+M1/M2. Any existing PostgreSQL 14+ works too — point `DATABASE_URL` at it (the role needs CREATE on the database).
+
+**Moving M1/M2 data into PostgreSQL** (one time, into an empty database):
+```powershell
+npm run db:import                                   # default file: apps/api/data/aurora-db.json
+npm run db:import -- C:\path\to\aurora-db.json     # or any exported JSON data file
+```
+The import verifies every saved version's SHA-256 hash first and refuses tampered data or a non-empty database.
+Uploaded files stay in `apps/api/data/uploads` for both adapters.
 
 Open **http://127.0.0.1:4200**. The landing route opens the most recently updated project in Concept Studio.
 
@@ -38,16 +55,26 @@ Open **http://127.0.0.1:4200**. The landing route opens the most recently update
 | `npm run e2e` | Playwright suite (builds the API, starts isolated API :3100 + web :4300) |
 | `npm run e2e:report` | Open the last Playwright HTML report |
 | `npm run lint` | ESLint for both apps (Angular template a11y rules included) |
-| `npm run seed:reset` | Delete local demo data; the API reseeds "Coastal Air" on next start |
+| `npm run seed:reset` | Delete local JSON demo data; the API reseeds "Coastal Air" on next start |
+| `npm run db:up` / `db:down` | Start / stop the PostgreSQL container (data kept in volume `aurora-pgdata`; `docker compose down -v` deletes it) |
+| `npm run db:migrate` / `db:status` | Apply / list SQL migrations (`apps/api/migrations/NNN_*.sql`) |
+| `npm run db:import -- <file>` | Import a JSON data file into an empty PostgreSQL database |
+| `npm run db:psql` | psql shell inside the container |
+| `npm run test:pg` | API test suite against PostgreSQL (each test file gets its own temporary database) |
 
 First E2E run only: `npx playwright install chromium`.
 
 Health check: `GET http://127.0.0.1:3000/health` (alias of `/api/v1/health`).
 
+**VS Code:** open the repository folder. `.vscode/` provides recommended extensions, tasks (*Database: start*,
+*Dev: API + web*, tests) and launch configurations (debug the API, debug a Jest file, Chrome against the web app).
+
 ### Configuration (optional)
-See `.env.example`. Variables are read from the environment (set them in the shell):
-`AURORA_API_HOST` (default `127.0.0.1`), `AURORA_API_PORT` (`3000`), `AURORA_DATA_DIR`
-(default `apps/api/data`), `AURORA_API_URL` (dev-proxy target).
+See `.env.example`. The API reads the repository-root `.env` on start; real environment variables win:
+`DATABASE_URL`, `AURORA_PERSISTENCE` (`postgres` | `json`), `AURORA_DB_MIGRATE` (`auto` | `off`),
+`AURORA_SEED` (`auto` | `off`), `AURORA_API_HOST` (default `127.0.0.1`), `AURORA_API_PORT` (`3000`),
+`AURORA_DATA_DIR` (default `apps/api/data`), `AURORA_API_URL` (dev-proxy target).
+To run the browser suite on PostgreSQL: `E2E_DATABASE_URL=postgres://aurora:aurora@127.0.0.1:5432/postgres npm run e2e`.
 
 ---
 
@@ -112,8 +139,10 @@ apps/api/src/
                      errors (envelope {code,message,details,requestId}), request-context (request ids, demo identity)
   domain/types.ts    domain model
   fixtures/          demo ingredient catalog, RDKit structure fixtures, Coastal Air seed
-  persistence/       repository interfaces + UnitOfWork; JSON adapter (atomic temp-file + fsync + rename, serialized
-                     transactional writes, version-hash integrity check on load); fixture catalog repository
+  persistence/       async repository interfaces + UnitOfWork; pg/ (PostgreSQL adapter, migrator, JSON import);
+                     JSON adapter (atomic temp-file + fsync + rename); fixture catalog repository
+  cli/db.ts          db:migrate / db:status / db:import
+apps/api/migrations/ versioned SQL migrations (001_initial_schema.sql)
   modules/           health, projects (brief, uploads, audit), ingredients, formulas (engine, service, controller), access (users,
                      members, roles), validations (engine + rule sets), experiments (+ lineage), reviews, ai (503)
 apps/web/src/app/
@@ -145,10 +174,24 @@ There is **no authentication**. The web app sends the selected simulated user in
 on every write. This demonstrates the permission model only — it is not security; real identity is a later
 decision (spec §10.6).
 
-### Persistence
-`apps/api/data/aurora-db.json` (+ `uploads/`). Writes are serialized and atomic; a crash cannot leave a
-half-written file. Saved versions, validation runs and review decisions are append-only; versions are re-hashed on every start
-(`/health` reports any mismatch). A schema-v1 data file is upgraded to v2 on start (backup `aurora-db.json.v1.bak`). The JSON adapter is single-process only — PostgreSQL arrives in M3 behind the same interfaces.
+### Persistence (M3)
+Domain services depend only on async repository interfaces (`persistence/repositories.ts`); two adapters
+implement them and are chosen at start-up:
+
+* **PostgreSQL** (`persistence/pg/`) — schema from versioned, checksummed SQL migrations
+  (`apps/api/migrations`, tracked in `schema_migrations`, applied under an advisory lock). Every API write is
+  one SQL transaction; a transaction-scoped advisory lock serialises writers so the revision checks (409) are
+  race-free even with several API processes. Reads use `REPEATABLE READ READ ONLY` snapshots. Mass fractions
+  are `numeric(12,6)` with range checks; formula lines reference the catalog mirror by foreign key; saved
+  versions, validation runs, audit events, observations, comments and decisions are **append-only, enforced
+  by database triggers**. Simulated users and the versioned ingredient catalog are synchronised into
+  `app_users` / `catalog_ingredients` on start.
+* **JSON file** (fallback) — `apps/api/data/aurora-db.json` (+ `uploads/`). Writes are serialized and atomic;
+  a crash cannot leave a half-written file.
+
+Both adapters pass the same API test suite (`npm test` and `npm run test:pg`).
+ Saved versions are re-hashed on every start with either adapter (`/health` reports any mismatch). A schema-v1
+JSON file is upgraded to v2 on start (backup `aurora-db.json.v1.bak`). The JSON adapter is single-process only.
 
 ## 5. Tooling decisions
 * **Storybook: not configured.** Components are workspace-specific and state-heavy; the Playwright visual

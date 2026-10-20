@@ -11,15 +11,15 @@ export const OWNER: ProjectRole[] = ['owner'];
  * NestJS even when UI hides controls"). Throws 404 for an unknown project, 403 when the simulated user is not a
  * member or lacks the role.
  */
-export function requireRole(
+export async function requireRole(
   tx: AuroraTx,
   projectId: string,
   allowed: ProjectRole[],
   action = 'perform this action',
-): Membership {
-  if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
+): Promise<Membership> {
+  if (!(await tx.projects.get(projectId))) throw notFound('Project', projectId);
   const user = currentUser();
-  const m = tx.memberships.get(projectId, user.id);
+  const m = await tx.memberships.get(projectId, user.id);
   if (!m) throw new DomainError(403, 'FORBIDDEN', 'You are not a member of this project', { userId: user.id });
   if (!allowed.includes(m.role))
     throw new DomainError(403, 'FORBIDDEN', `Role "${m.role}" cannot ${action}`, { role: m.role, allowed });
