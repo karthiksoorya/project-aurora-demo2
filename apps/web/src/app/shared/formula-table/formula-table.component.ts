@@ -78,6 +78,7 @@ import { IngredientArtComponent } from '../ingredient-card/ingredient-art.compon
                   class="input qty"
                   [class.invalid]="ctx.invalidInputs()[it.lineId] !== undefined"
                   inputmode="decimal"
+                  [readonly]="!ctx.canEdit()"
                   [attr.aria-label]="'Quantity for ' + (ing?.name ?? 'line') + ' in percent w/w'"
                   [attr.aria-invalid]="ctx.invalidInputs()[it.lineId] !== undefined"
                   [ngModel]="ctx.invalidInputs()[it.lineId] ?? editing()[it.lineId] ?? display(it.massPct)"

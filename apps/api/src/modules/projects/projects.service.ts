@@ -3,10 +3,12 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { badRequest, conflict, notFound } from '../../common/errors';
 import { newId } from '../../common/ids';
-import { DEMO_USER } from '../../common/request-context';
+import { currentUser } from '../../common/request-context';
 import type { Brief, BriefContent, Project, Upload } from '../../domain/types';
 import { JsonUnitOfWork } from '../../persistence/json-store';
 import { UnitOfWork } from '../../persistence/repositories';
+import { defaultMemberships } from '../../fixtures/seed';
+import { ANY_ROLE, OWNER, requireRole } from '../access/access';
 import { audit } from '../audit/audit';
 import type { CreateProjectDto, UpdateBriefDto } from './projects.dto';
 
@@ -35,10 +37,13 @@ export class ProjectsService {
 
   list() {
     return this.uow.read((tx) =>
-      tx.projects.list().map((p) => {
-        const d = tx.drafts.getByProject(p.id);
-        return { ...p, draftRevision: d?.revision ?? null, versionCount: tx.versions.listByProject(p.id).length };
-      }),
+      tx.projects
+        .list()
+        .filter((p) => !!tx.memberships.get(p.id, currentUser().id))
+        .map((p) => {
+          const d = tx.drafts.getByProject(p.id);
+          return { ...p, draftRevision: d?.revision ?? null, versionCount: tx.versions.listByProject(p.id).length };
+        }),
     );
   }
 
@@ -46,6 +51,7 @@ export class ProjectsService {
     const r = await this.uow.read((tx) => {
       const p = tx.projects.get(projectId);
       if (!p) return undefined;
+      const me = requireRole(tx, projectId, ANY_ROLE, 'view this project');
       const d = tx.drafts.getByProject(projectId);
       const versions = tx.versions.listByProject(projectId);
       return {
@@ -56,6 +62,7 @@ export class ProjectsService {
         latestVersionId: versions.at(-1)?.id ?? null,
         versionCount: versions.length,
         briefRevision: tx.briefs.get(projectId)?.revision ?? null,
+        myRole: me.role,
       };
     });
     if (!r) throw notFound('Project', projectId);
@@ -73,17 +80,18 @@ export class ProjectsService {
         name,
         status: 'draft',
         summary: dto.summary?.trim() ?? '',
-        createdBy: DEMO_USER.id,
+        createdBy: currentUser().id,
         createdAt: now,
         updatedAt: now,
       };
       tx.projects.insert(p);
+      for (const m of defaultMemberships(p.id, currentUser().id, now)) tx.memberships.upsert(m);
       tx.briefs.upsert({
         projectId: p.id,
         revision: 1,
         content: structuredClone(EMPTY_BRIEF),
         updatedAt: now,
-        updatedBy: DEMO_USER.id,
+        updatedBy: currentUser().id,
       });
       tx.drafts.upsert({
         id: newId(),
@@ -93,7 +101,7 @@ export class ProjectsService {
         batchSizeG: '100.000',
         items: [],
         updatedAt: now,
-        updatedBy: DEMO_USER.id,
+        updatedBy: currentUser().id,
       });
       audit(tx, p.id, 'project.created', 'project', p.id, { name }, now);
       return p;
@@ -102,7 +110,7 @@ export class ProjectsService {
 
   async getBrief(projectId: string) {
     const b = await this.uow.read((tx) => {
-      if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
+      requireRole(tx, projectId, ANY_ROLE, 'view the brief');
       return tx.briefs.get(projectId);
     });
     if (!b) throw notFound('Brief', projectId);
@@ -111,7 +119,7 @@ export class ProjectsService {
 
   updateBrief(projectId: string, dto: UpdateBriefDto) {
     return this.uow.write((tx) => {
-      if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
+      requireRole(tx, projectId, OWNER, 'edit the brief');
       const cur = tx.briefs.get(projectId);
       if (!cur) throw notFound('Brief', projectId);
       if (cur.revision !== dto.revision)
@@ -130,7 +138,13 @@ export class ProjectsService {
         if (!up || up.projectId !== projectId) throw badRequest('Unknown upload referenced', { uploadId: u });
       }
       const now = new Date().toISOString();
-      const next: Brief = { projectId, revision: cur.revision + 1, content, updatedAt: now, updatedBy: DEMO_USER.id };
+      const next: Brief = {
+        projectId,
+        revision: cur.revision + 1,
+        content,
+        updatedAt: now,
+        updatedBy: currentUser().id,
+      };
       tx.briefs.upsert(next);
       tx.projects.touch(projectId, now);
       const prevConcepts = new Set(cur.content.concepts.map((c) => c.id));
@@ -156,6 +170,7 @@ export class ProjectsService {
     projectId: string,
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined,
   ) {
+    await this.uow.read((tx) => requireRole(tx, projectId, OWNER, 'upload files'));
     if (!file) throw badRequest('Missing file field "file"');
     const ext = UPLOAD_MIME[file.mimetype];
     if (!ext) throw badRequest('Unsupported file type', { allowed: Object.keys(UPLOAD_MIME) });
@@ -182,15 +197,23 @@ export class ProjectsService {
   }
 
   async getUpload(id: string) {
-    const u = await this.uow.read((tx) => tx.uploads.get(id));
+    const u = await this.uow.read((tx) => {
+      const found = tx.uploads.get(id);
+      if (found) requireRole(tx, found.projectId, ANY_ROLE, 'view uploads');
+      return found;
+    });
     if (!u) throw notFound('Upload', id);
     return { upload: u, file: path.join((this.uow as JsonUnitOfWork).uploadsDir, u.storedName) };
   }
 
-  audit(projectId: string, limit: number) {
+  /** Immutable event feed; optional filters: action prefix (e.g. "review.") and targetId. */
+  audit(projectId: string, limit: number, action?: string, targetId?: string) {
     return this.uow.read((tx) => {
-      if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
-      return tx.audit.listByProject(projectId, Math.min(Math.max(limit, 1), 200));
+      requireRole(tx, projectId, ANY_ROLE, 'view the audit trail');
+      return tx.audit
+        .listByProject(projectId, 100000)
+        .filter((e) => (!action || e.action.startsWith(action)) && (!targetId || e.targetId === targetId))
+        .slice(0, Math.min(Math.max(limit, 1), 200));
     });
   }
 }

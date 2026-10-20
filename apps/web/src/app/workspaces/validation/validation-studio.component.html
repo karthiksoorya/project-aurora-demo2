@@ -1,0 +1,515 @@
+<div class="page-head">
+  <span class="ws-icon"><lucide-icon [img]="I.ShieldCheck" [size]="30" style="color: #3c63e6" /></span>
+  <h1 data-testid="workspace-title">Validation Studio</h1>
+  <span class="sub"
+    >Validate saved formula versions with traceable rules{{
+      ui.mode() === 'ai' ? ' · AI explanations unavailable' : ''
+    }}</span
+  >
+  <span class="grow"></span>
+  <label class="vsel">
+    <span class="sr-only">Formula version</span>
+    <lucide-icon [img]="I.History" [size]="16" />
+    <select class="select" [ngModel]="versionId()" (ngModelChange)="selectVersion($event)" data-testid="vs-version">
+      @for (v of ctx.versions(); track v.id) {
+        <option [value]="v.id">
+          {{ ctx.project()?.name }} – {{ v.versionLabel }} · {{ v.savedAt | date: 'd MMM' }}
+        </option>
+      }
+    </select>
+  </label>
+  <button class="btn" (click)="compareVersions()" [disabled]="ctx.versions().length < 2">
+    <lucide-icon [img]="I.GitCompareArrows" [size]="16" /> Compare Versions
+  </button>
+  <button class="btn" (click)="exportRun()" [disabled]="!run()">
+    <lucide-icon [img]="I.Download" [size]="16" /> Export
+  </button>
+  <button
+    class="btn primary"
+    (click)="runValidation()"
+    [disabled]="!versionId() || running() || !ctx.canEdit() || !ruleSetIds().length"
+    data-testid="run-validation"
+  >
+    <lucide-icon [img]="I.Activity" [size]="16" /> {{ running() ? 'Running…' : 'Run Validation' }}
+  </button>
+  @if (ui.mode() === 'ai' && !ui.aiPanelVisible('validation')) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('validation', true)">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+<div class="tabs ws-tabs" role="tablist">
+  @for (
+    t of [
+      ['checks', 'Formula Checks', 'Check'],
+      ['standards', 'Standards Screening', 'ShieldCheck'],
+      ['evidence', 'Evidence', 'FileText'],
+      ['history', 'Run History', 'History'],
+    ];
+    track t[0]
+  ) {
+    <button
+      class="tab"
+      role="tab"
+      [class.on]="tab() === t[0]"
+      [attr.aria-selected]="tab() === t[0]"
+      (click)="tab.set($any(t[0]))"
+      [attr.data-testid]="'vs-tab-' + t[0]"
+    >
+      <lucide-icon [img]="$any(I)[t[2]]" [size]="16" /> {{ t[1]
+      }}{{ t[0] === 'history' ? ' (' + runs().length + ')' : '' }}
+    </button>
+  }
+</div>
+
+<div class="layout" [class.with-ai]="ui.aiPanelVisible('validation')">
+  <div class="main">
+    @if (!ctx.versions().length) {
+      <div class="card card-pad empty">
+        <lucide-icon [img]="I.ShieldCheck" [size]="36" />
+        <b>No saved version to validate yet</b>
+        <span class="small muted"
+          >Validation always runs against an immutable saved version — never the editable draft.</span
+        >
+        <button class="btn primary" (click)="goFormula()">Open Formula Studio</button>
+      </div>
+    } @else {
+      @if (run()?.stale?.isStale) {
+        <div class="stale" role="alert" data-testid="vs-stale">
+          <lucide-icon [img]="I.CircleAlert" [size]="16" />
+          <span class="grow"><b>Results may be out of date.</b> {{ run()!.stale.reasons.join(' · ') }}</span>
+        </div>
+      }
+
+      <!-- top cards -->
+      <div class="top">
+        <section class="card card-pad overview">
+          <div class="card-head"><h2>Formula Overview</h2></div>
+          <div class="row" style="gap: 14px; align-items: flex-start">
+            <div class="ov-art"><aur-scene-art key="waves" /></div>
+            <div class="col" style="gap: 4px; min-width: 0">
+              <div class="row" style="gap: 8px">
+                <b style="font-size: 17px" data-testid="vs-version-label"
+                  >{{ ctx.project()?.name }} – {{ version()?.versionLabel }}</b
+                >
+                <span class="badge info">Saved version</span>
+              </div>
+              <span class="small muted">{{ ctx.project()?.summary }}</span>
+              <span class="tiny mono muted">sha256 {{ version()?.snapshotHash?.slice(0, 20) }}…</span>
+            </div>
+          </div>
+          <div class="ov-stats">
+            <div>
+              <span class="tiny muted">Total Ingredients</span><b>{{ version()?.lineCount }}</b>
+            </div>
+            <div>
+              <span class="tiny muted">Total Concentration</span><b>{{ version()?.totalPct?.slice(0, -4) }} %</b>
+            </div>
+            <div>
+              <span class="tiny muted">Fragrance Type</span><b>{{ ctx.briefEdit()?.fragranceType || '—' }}</b>
+            </div>
+            <div>
+              <span class="tiny muted">Target Profile</span><b>{{ ctx.briefEdit()?.targetConsumer || '—' }}</b>
+            </div>
+          </div>
+        </section>
+
+        <section class="card card-pad status-card" data-testid="vs-overall">
+          <div class="card-head"><h2>Overall Validation Status</h2></div>
+          @if (run(); as r) {
+            <div class="row" style="gap: 18px">
+              <svg viewBox="0 0 42 42" class="donut" aria-hidden="true">
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="#eef1f7" stroke-width="5" />
+                @for (d of donut(); track $index) {
+                  <circle
+                    cx="21"
+                    cy="21"
+                    r="15.9"
+                    fill="none"
+                    [attr.stroke]="d.color"
+                    stroke-width="5"
+                    [attr.stroke-dasharray]="d.dash"
+                    [attr.stroke-dashoffset]="d.offset"
+                  />
+                }
+                <text x="21" y="21" text-anchor="middle" font-size="7" font-weight="700" fill="#0f1a3c">
+                  {{ passPct() }}%
+                </text>
+                <text x="21" y="27" text-anchor="middle" font-size="3" fill="#6b7695">checks passed</text>
+              </svg>
+              <div class="legend-col">
+                <div>
+                  <i class="dot" style="background: #17a568"></i>Passed <b>{{ r.summary.pass }}</b>
+                </div>
+                <div>
+                  <i class="dot" style="background: #f2b01e"></i>Warnings <b>{{ r.summary.warning }}</b>
+                </div>
+                <div>
+                  <i class="dot" style="background: #e0384f"></i>Failed <b>{{ r.summary.fail }}</b>
+                </div>
+                <div>
+                  <i class="dot" style="background: #a8b1c7"></i>Not assessed <b>{{ r.summary.not_assessed }}</b>
+                </div>
+              </div>
+            </div>
+            <div class="row" style="margin-top: 10px; gap: 8px">
+              <span class="small">Run result</span>
+              <aur-status [status]="r.status" data-testid="vs-run-status" />
+              <span class="tiny muted grow" style="text-align: right">{{ r.market }} · {{ r.productCategory }}</span>
+            </div>
+          } @else {
+            <p class="small muted">
+              No run for this version yet. Choose settings below and press <b>Run Validation</b>.
+            </p>
+          }
+        </section>
+
+        <section class="card card-pad insights" data-testid="vs-insights">
+          <div class="card-head">
+            <h2 class="grow">Key Findings</h2>
+            <span class="tiny muted">from this run only</span>
+          </div>
+          @for (i of insights(); track i.text) {
+            <div class="ins">
+              <span [class]="'ins-ic ' + i.icon">{{ { ok: '✓', warn: '!', err: '✕', na: '–' }[i.icon] }}</span
+              ><span class="small">{{ i.text }}</span>
+            </div>
+          } @empty {
+            <p class="small muted">Run a validation to see findings.</p>
+          }
+        </section>
+      </div>
+
+      @switch (tab()) {
+        @case ('checks') {
+          <div class="mid">
+            <section class="card card-pad table-card">
+              <div class="row" style="margin-bottom: 8px">
+                <div class="seg">
+                  @for (f of ['all', 'pass', 'warning', 'fail', 'not_assessed']; track f) {
+                    <button [class.on]="filter() === f" (click)="filter.set($any(f))">
+                      {{
+                        f === 'all'
+                          ? 'All checks'
+                          : f === 'not_assessed'
+                            ? 'Not assessed'
+                            : f[0].toUpperCase() + f.slice(1)
+                      }}
+                    </button>
+                  }
+                </div>
+                <span class="grow"></span>
+                <div class="search" style="width: 220px">
+                  <span class="search-icon"><lucide-icon [img]="I.Search" [size]="14" /></span>
+                  <input
+                    class="input"
+                    style="height: 32px"
+                    placeholder="Search ingredients…"
+                    aria-label="Search ingredients"
+                    [ngModel]="q()"
+                    (ngModelChange)="q.set($event)"
+                  />
+                </div>
+              </div>
+              <div class="scroll" style="flex: 1; min-height: 0">
+                <table class="table" data-testid="vs-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Ingredient</th>
+                      <th>IFRA status</th>
+                      <th>Allergen</th>
+                      <th>Data completeness</th>
+                      <th>Notes</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of rows(); track row.lineId; let i = $index) {
+                      <tr [attr.data-testid]="'vs-row-' + (row.ing?.slug ?? i)">
+                        <td class="small muted">{{ i + 1 }}</td>
+                        <td>
+                          <div class="row">
+                            @if (row.ing) {
+                              <aur-ingredient-art [motif]="row.ing.art.motif" [hue]="row.ing.art.hue" [size]="28" />
+                            }
+                            <b class="small">{{ row.name }}</b>
+                          </div>
+                        </td>
+                        <td>
+                          @if (row.reg) {
+                            <aur-status [status]="row.reg.status" />
+                          } @else {
+                            <span class="tiny muted">not selected</span>
+                          }
+                        </td>
+                        <td>
+                          @if (row.alg) {
+                            <aur-status [status]="row.alg.status" />
+                          } @else {
+                            <span class="tiny muted">not selected</span>
+                          }
+                        </td>
+                        <td>
+                          @if (row.dc) {
+                            <aur-status
+                              [status]="row.dc.status"
+                              [label]="row.dc.status === 'pass' ? 'Complete' : 'Incomplete'"
+                            />
+                          }
+                        </td>
+                        <td class="tiny muted note">{{ row.dc?.message }}</td>
+                        <td>
+                          <button
+                            class="btn sm ghost"
+                            (click)="showEvidence((row.reg ?? row.dc ?? row.findings[0]).id)"
+                          >
+                            Evidence
+                          </button>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="7" class="small muted">
+                          {{ run() ? 'No rows match the filter.' : 'No run yet.' }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="card card-pad side-card">
+              <div class="card-head">
+                <h3 class="grow">Formula checks</h3>
+                <span class="tiny muted">{{ run()?.engineVersion }}</span>
+              </div>
+              @for (f of formulaChecks(); track f.id) {
+                <button class="fc" (click)="showEvidence(f.id)" [attr.data-testid]="'vs-check-' + f.ruleId">
+                  <aur-status [status]="f.status" />
+                  <span class="col" style="gap: 1px; align-items: flex-start">
+                    <span class="tiny mono muted">{{ f.ruleId }}</span>
+                    <span class="small">{{ f.message }}</span>
+                  </span>
+                </button>
+              } @empty {
+                <p class="small muted">Formula checks appear after a run.</p>
+              }
+            </section>
+          </div>
+        }
+        @case ('standards') {
+          <div class="mid">
+            <section class="card card-pad table-card" data-testid="vs-coverage">
+              <div class="card-head">
+                <h3 class="grow">Regulatory Standards Screening</h3>
+                <span class="tiny muted">coverage of the selected run</span>
+              </div>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Standard / rule set</th>
+                    <th>Edition</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of run()?.coverage ?? []; track c.ruleSetId) {
+                    <tr>
+                      <td class="small">
+                        <b>{{ c.title }}</b>
+                      </td>
+                      <td class="tiny muted">{{ c.edition }}</td>
+                      <td><aur-status [status]="c.status" /></td>
+                      <td class="tiny muted">{{ c.reason ?? 'Deterministic checks evaluated on the snapshot' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <p class="tiny muted" style="margin-top: 10px">
+                To evaluate a regulatory rule set, a verified dataset (edition, product categories, limits and
+                ingredient mapping) must be supplied and approved. Until then results stay <b>Not assessed</b>; Aurora
+                never shows inferred compliance.
+              </p>
+            </section>
+            <section class="card card-pad side-card">
+              <div class="card-head"><h3>Missing inputs</h3></div>
+              @for (rs of options()?.ruleSets ?? []; track rs.id) {
+                @if (!rs.datasetConfigured) {
+                  <div class="mi">
+                    <b class="small">{{ rs.title }}</b>
+                    <ul>
+                      @for (m of rs.missingInputs; track m) {
+                        <li class="tiny">{{ m }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+              }
+            </section>
+          </div>
+        }
+        @case ('evidence') {
+          <div class="mid">
+            <section class="card card-pad table-card">
+              <div class="card-head">
+                <h3 class="grow">Findings</h3>
+                <span class="tiny muted">{{ run()?.findings?.length ?? 0 }} records</span>
+              </div>
+              <div class="scroll" style="flex: 1; min-height: 0">
+                @for (f of run()?.findings ?? []; track f.id) {
+                  <button class="fc" [class.on]="selectedFinding()?.id === f.id" (click)="findingId.set(f.id)">
+                    <aur-status [status]="f.status" />
+                    <span class="col" style="gap: 1px; align-items: flex-start">
+                      <span class="tiny mono muted">{{ f.ruleId }} · {{ f.category.replace('_', ' ') }}</span>
+                      <span class="small">{{ f.message }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+            </section>
+            <section class="card card-pad side-card evidence" data-testid="vs-evidence">
+              @if (selectedFinding(); as f) {
+                <div class="card-head">
+                  <h3 class="grow">Evidence</h3>
+                  <aur-status [status]="f.status" />
+                </div>
+                <dl>
+                  <dt>Rule</dt>
+                  <dd class="mono">{{ f.ruleId }}</dd>
+                  <dt>Finding</dt>
+                  <dd>{{ f.message }}</dd>
+                  <dt>Basis</dt>
+                  <dd>{{ f.evidence.basis }}</dd>
+                  @for (kv of inputs(f); track kv[0]) {
+                    <dt>{{ kv[0] }}</dt>
+                    <dd class="mono">{{ kv[1] }}</dd>
+                  }
+                  @if (f.evidence.missingInputs?.length) {
+                    <dt>Missing inputs</dt>
+                    <dd>
+                      <ul>
+                        @for (m of f.evidence.missingInputs; track m) {
+                          <li>{{ m }}</li>
+                        }
+                      </ul>
+                    </dd>
+                  }
+                </dl>
+                <div class="section-title" style="margin: 12px 0 6px">Run snapshot</div>
+                <dl>
+                  <dt>Version</dt>
+                  <dd>{{ run()?.versionLabel }}</dd>
+                  <dt>Snapshot hash</dt>
+                  <dd class="mono" data-testid="vs-evidence-hash">{{ run()?.snapshotHash }}</dd>
+                  <dt>Market</dt>
+                  <dd>{{ run()?.market }}</dd>
+                  <dt>Category</dt>
+                  <dd>{{ run()?.productCategory }}</dd>
+                  <dt>Rule sets</dt>
+                  <dd>{{ ruleSetNames() }}</dd>
+                  <dt>Engine</dt>
+                  <dd>{{ run()?.engineVersion }}</dd>
+                  <dt>Evaluated</dt>
+                  <dd>{{ run()?.evaluatedAt | date: 'd MMM y, HH:mm:ss' }}</dd>
+                </dl>
+              } @else {
+                <p class="small muted">Select a finding.</p>
+              }
+            </section>
+          </div>
+        }
+        @case ('history') {
+          <section class="card card-pad history" data-testid="vs-history">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Evaluated</th>
+                  <th>Version</th>
+                  <th>Market</th>
+                  <th>Category</th>
+                  <th>Result</th>
+                  <th>State</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of runs(); track r.id) {
+                  <tr>
+                    <td class="small">{{ r.evaluatedAt | date: 'd MMM y, HH:mm:ss' }}</td>
+                    <td class="small">
+                      <b>{{ r.versionLabel }}</b>
+                    </td>
+                    <td class="small">{{ r.market }}</td>
+                    <td class="small">{{ r.productCategory }}</td>
+                    <td><aur-status [status]="r.status" /></td>
+                    <td>
+                      @if (r.stale.isStale) {
+                        <span class="badge warn" [attr.title]="r.stale.reasons.join('; ')">Stale</span>
+                      } @else {
+                        <span class="badge ok">Current</span>
+                      }
+                    </td>
+                    <td><button class="btn sm ghost" (click)="openRun(r.id)">Open</button></td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="7" class="small muted">No validation runs yet.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+      }
+
+      <!-- run settings -->
+      <section class="card card-pad settings" aria-label="Run settings">
+        <div class="row" style="gap: 14px; flex-wrap: wrap">
+          <b class="small">Run settings</b>
+          <label class="small row"
+            >Market
+            <select class="select sm" [ngModel]="market()" (ngModelChange)="market.set($event)" data-testid="vs-market">
+              @for (m of options()?.markets ?? []; track m) {
+                <option [value]="m">{{ m }}</option>
+              }
+            </select>
+          </label>
+          <label class="small row"
+            >Product category
+            <select
+              class="select sm"
+              [ngModel]="category()"
+              (ngModelChange)="category.set($event)"
+              data-testid="vs-category"
+            >
+              @for (c of options()?.categories ?? []; track c) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </label>
+          <span class="small muted">Rule sets:</span>
+          @for (rs of options()?.ruleSets ?? []; track rs.id) {
+            <label class="small row rs" [attr.title]="rs.description">
+              <input
+                type="checkbox"
+                [checked]="ruleSetIds().includes(rs.id)"
+                (change)="toggleRuleSet(rs.id)"
+                [attr.data-testid]="'vs-rs-' + rs.id"
+              />
+              {{ rs.title }}
+              @if (!rs.datasetConfigured) {
+                <span class="badge na" style="height: 18px">no dataset</span>
+              }
+            </label>
+          }
+        </div>
+      </section>
+    }
+  </div>
+  @if (ui.aiPanelVisible('validation')) {
+    <aur-ai-partner-panel workspace="validation" />
+  }
+</div>

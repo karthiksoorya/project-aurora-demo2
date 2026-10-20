@@ -4,8 +4,7 @@ All 27 reference screenshots from `SCREEN_MANIFEST_FINAL.md` are mapped below. S
 image is a tab, canvas mode, panel, expanded state or overlay of those routes. "Smoke" = file written by
 `e2e/m1-f-visual-smoke.spec.ts` to `e2e/screenshots/<ID>.png` at 1672×941.
 
-Status legend: **M1** implemented and tested · **M1-shell** route/shell/AI-mode live, workflow is M2 ·
-**M2** not yet implemented (state planned).
+Status legend: **M1** implemented and tested in M1 · **M2** implemented and tested in M2. All 27 states are implemented.
 
 | ID | Workspace / state | How to reach it in the app | Main components | Status | Smoke |
 |---|---|---|---|---|---|
@@ -27,15 +26,15 @@ Status legend: **M1** implemented and tested · **M1-shell** route/shell/AI-mode
 | FS-VC | Version comparison | tab **Compare Versions** | `VersionCompareComponent` (API compare of saved snapshots) | M1 | ✓ |
 | FS-MI1 | Molecular Inspector (compound) | canvas **Molecular Inspector**, pick Linalool | `MolecularInspectorComponent` viewer + right-column details, `MoleculeViewerComponent` | M1 | ✓ |
 | FS-MI2 | Inspector, constituent focus | pick Bergamot EO → Limonene | same inspector, breadcrumb *Bergamot EO › Limonene* | M1 | ✓ |
-| VS-M | Validation Studio · Manual | `/validation` | `PlannedWorkspaceComponent` (saved versions, scope notice) | M1-shell | ✓ |
-| VS-A | Validation · AI Assist | AI Assist mode | + AI panel | M1-shell | ✓ |
-| VS-E | Validation evidence expanded | — | planned evidence panel | M2 | — |
-| EE-M1 | Experiment Explorer · Manual | `/experiments` | planned workspace | M1-shell | ✓ |
-| EE-A | Experiment · AI Assist | AI Assist mode | + AI panel | M1-shell | ✓ |
-| EE-X | Experiment branching expanded | — | planned graph canvas (API already stores parent versions) | M2 | — |
-| SR-M | Share & Review · Manual | `/review` | planned workspace | M1-shell | ✓ |
-| SR-A | Share & Review · AI Assist | AI Assist mode | + AI panel | M1-shell | ✓ |
-| SR-X | Review expanded (snapshot, comments) | — | planned | M2 | — |
+| VS-M | Validation Studio · Manual | `/validation`, tab *Checks* | `ValidationStudioComponent` (version picker, market/category, rule sets, run; overall status; ingredient table; formula checks FC-001…FC-005, DC-001) | M2 | ✓ |
+| VS-A | Validation · AI Assist | AI Assist mode | + AI panel (unavailable) | M2 | ✓ |
+| VS-E | Validation evidence expanded | tab *Evidence & Reports* | evidence view: version hash, engine version, rule-set coverage, per-finding sources & missing inputs | M2 | ✓ |
+| EE-M1 | Experiment Explorer · Manual | `/experiments`, tab *Experiment History* | `ExperimentExplorerComponent` (experiment table, detail, typed observations, compact lineage card) | M2 | ✓ |
+| EE-A | Experiment · AI Assist | AI Assist mode | + AI panel | M2 | ✓ |
+| EE-X | Experiment branching expanded | tab *Branching View* | `LineageGraphComponent` (saved parent links, zoom) + branch side panel (Create Branch, compare with parent) | M2 | ✓ |
+| SR-M | Share & Review · Manual | `/review`, tab *Versions* | `ShareReviewComponent` (version list, snapshot detail, review stepper, members & roles, audit) | M2 | ✓ |
+| SR-A | Share & Review · AI Assist | AI Assist mode | + AI panel | M2 | ✓ |
+| SR-X | Review expanded (snapshot, comments) | tab *Feedback* | frozen snapshot, comment thread, decision panel (role-gated) | M2 | ✓ |
 
 Formula Studio canvas switcher is always **Inspiration Canvas · 3D Formula View · 3D Ingredients ·
 Molecular Inspector** (FS-06's alternate internal tabs and step sidebar were reconciled into this shell,

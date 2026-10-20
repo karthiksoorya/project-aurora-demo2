@@ -8,7 +8,7 @@ import { E2E_API, E2E_WEB_PORT } from './e2e/support/api-process';
  */
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/tools/**'], // ad-hoc screenshot helpers, not acceptance tests
+  testIgnore: process.env.SHOTS ? [] : ['**/tools/**'], // ad-hoc screenshot helpers, not acceptance tests
   outputDir: './e2e/test-results',
   fullyParallel: false,
   workers: 1,

@@ -1,5 +1,5 @@
 import { newId } from '../../common/ids';
-import { DEMO_USER } from '../../common/request-context';
+import { currentUser } from '../../common/request-context';
 import type { AuditEvent } from '../../domain/types';
 import type { AuroraTx } from '../../persistence/repositories';
 
@@ -16,8 +16,8 @@ export function audit(
   const e: AuditEvent = {
     id: newId(),
     projectId,
-    actorId: DEMO_USER.id,
-    actorName: DEMO_USER.name,
+    actorId: currentUser().id,
+    actorName: currentUser().name,
     action,
     targetType,
     targetId,

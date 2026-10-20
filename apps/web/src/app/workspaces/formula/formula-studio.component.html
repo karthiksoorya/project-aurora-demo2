@@ -14,7 +14,12 @@
   @if (ctx.draftSaving()) {
     <span class="tiny muted">saving draft…</span>
   }
-  <button class="btn" (click)="saveOpen.set(true)" [disabled]="!ctx.workingItems().length" data-testid="save-version">
+  <button
+    class="btn"
+    (click)="saveOpen.set(true)"
+    [disabled]="!ctx.workingItems().length || !ctx.canEdit()"
+    data-testid="save-version"
+  >
     <lucide-icon [img]="I.Save" [size]="16" /> Save Version
   </button>
   <div class="pos">

@@ -43,7 +43,7 @@
   <button
     class="btn primary"
     (click)="save()"
-    [disabled]="!ctx.briefDirty() || ctx.briefSaving()"
+    [disabled]="!ctx.briefDirty() || ctx.briefSaving() || !ctx.canEdit()"
     data-testid="save-brief"
   >
     <lucide-icon [img]="I.Save" [size]="16" /> Save Brief

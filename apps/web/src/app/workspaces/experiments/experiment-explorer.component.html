@@ -1,0 +1,595 @@
+<div class="page-head">
+  <span class="ws-icon"><lucide-icon [img]="I.TrendingUp" [size]="30" style="color: #e0479e" /></span>
+  <h1 data-testid="workspace-title">Experiment Explorer</h1>
+  <span class="sub">Track experiments against exact saved versions, compare versions and explore branches</span>
+  <span class="grow"></span>
+  <button
+    class="btn primary"
+    (click)="openNew()"
+    [disabled]="!ctx.canEdit() || !ctx.versions().length"
+    data-testid="new-experiment"
+  >
+    <lucide-icon [img]="I.Plus" [size]="16" /> New Experiment
+  </button>
+  @if (ui.mode() === 'ai' && !ui.aiPanelVisible('experiments')) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('experiments', true)">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+<div class="tabs ws-tabs" role="tablist">
+  @for (
+    t of [
+      ['history', 'Experiment History', 'FlaskConical'],
+      ['branching', 'Branching View', 'GitBranch'],
+      ['compare', 'Version Compare', 'GitCompareArrows'],
+      ['notes', 'Scientist Notes', 'FileText'],
+    ];
+    track t[0]
+  ) {
+    <button
+      class="tab"
+      role="tab"
+      [class.on]="tab() === t[0]"
+      [attr.aria-selected]="tab() === t[0]"
+      (click)="tab.set($any(t[0]))"
+      [attr.data-testid]="'ee-tab-' + t[0]"
+    >
+      <lucide-icon [img]="$any(I)[t[2]]" [size]="16" /> {{ t[1] }}
+    </button>
+  }
+</div>
+
+<div class="layout" [class.with-ai]="ui.aiPanelVisible('experiments')">
+  <div class="main">
+    @switch (tab()) {
+      @case ('history') {
+        <div class="hist">
+          <section class="card card-pad list" aria-label="Experiment history">
+            <div class="card-head">
+              <h2 class="grow">Experiment History ({{ experiments().length }})</h2>
+            </div>
+            <div class="row" style="gap: 6px; margin-bottom: 8px">
+              <div class="search grow">
+                <span class="search-icon"><lucide-icon [img]="I.Search" [size]="14" /></span>
+                <input
+                  class="input"
+                  style="height: 32px"
+                  placeholder="Search experiments…"
+                  aria-label="Search experiments"
+                  [ngModel]="q()"
+                  (ngModelChange)="q.set($event)"
+                />
+              </div>
+              <select
+                class="select"
+                style="height: 32px; width: 130px"
+                aria-label="Filter status"
+                [ngModel]="statusFilter()"
+                (ngModelChange)="statusFilter.set($event)"
+              >
+                <option value="">All status</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div class="scroll" style="flex: 1; min-height: 0">
+              <table class="table" data-testid="experiment-table">
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>Experiment</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (e of filtered(); track e.id) {
+                    <tr
+                      [class.sel]="e.id === selectedId()"
+                      (click)="selectExperiment(e)"
+                      style="cursor: pointer"
+                      [attr.data-testid]="'exp-' + e.title"
+                    >
+                      <td>
+                        <span class="badge info">{{ e.versionLabel }}</span>
+                      </td>
+                      <td class="small">
+                        <b>{{ e.title }}</b>
+                      </td>
+                      <td class="tiny muted">{{ e.createdAt | date: 'd MMM y' }}</td>
+                      <td><aur-status [status]="e.status" /></td>
+                      <td class="small">{{ e.observations.length }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="small muted" style="padding: 16px 8px">
+                        No experiments yet. Create one on a saved version.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card card-pad detail" aria-label="Selected experiment" data-testid="experiment-detail">
+            @if (selected(); as e) {
+              <div class="row" style="gap: 12px; align-items: flex-start">
+                <div class="d-art"><aur-scene-art key="sea-rock" /></div>
+                <div class="col grow" style="gap: 4px; min-width: 0">
+                  <div class="row" style="gap: 8px">
+                    <h2>{{ e.title }}</h2>
+                    <aur-status [status]="e.status" />
+                  </div>
+                  <span class="small"
+                    >On version <b data-testid="exp-version">{{ ctx.project()?.name }} – {{ e.versionLabel }}</b> ·
+                    created {{ e.createdAt | date: 'd MMM y, HH:mm' }}</span
+                  >
+                  <span class="tiny mono muted">version {{ e.formulaVersionId.slice(0, 8) }} · immutable</span>
+                </div>
+                @if (ctx.canEdit()) {
+                  <select
+                    class="select"
+                    style="height: 30px; width: 130px"
+                    aria-label="Experiment status"
+                    [ngModel]="e.status"
+                    (ngModelChange)="setStatus($event)"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                }
+              </div>
+              <div class="proto">
+                <div>
+                  <span class="tiny muted">Objective</span><span class="small">{{ e.protocol.objective || '—' }}</span>
+                </div>
+                <div>
+                  <span class="tiny muted">Method</span><span class="small">{{ e.protocol.method || '—' }}</span>
+                </div>
+                <div>
+                  <span class="tiny muted">Conditions</span
+                  ><span class="small">{{ e.protocol.conditions || '—' }}</span>
+                </div>
+              </div>
+              <div class="two">
+                <div class="col" style="min-height: 0">
+                  <div class="section-title">Formula composition (saved snapshot)</div>
+                  <div class="scroll" style="max-height: 220px">
+                    <table class="table">
+                      <tbody>
+                        @for (it of snapshot()?.snapshot?.items ?? []; track it.lineId) {
+                          @let ing = ctx.ingredient(it.ingredientId);
+                          <tr>
+                            <td>
+                              <div class="row">
+                                @if (ing) {
+                                  <aur-ingredient-art [motif]="ing.art.motif" [hue]="ing.art.hue" [size]="22" />
+                                }
+                                <span class="small">{{ it.ingredientName }}</span>
+                              </div>
+                            </td>
+                            <td class="small mono">{{ (+it.massPct).toFixed(2) }}</td>
+                            <td>
+                              <span
+                                class="chip"
+                                [style.background]="role(it.role).tint"
+                                [style.color]="role(it.role).ink"
+                                >{{ role(it.role).label }}</span
+                              >
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="col obs-col" style="min-height: 0">
+                  <div class="section-title">Observations ({{ e.observations.length }})</div>
+                  <div class="scroll obs-list" data-testid="observations">
+                    @for (o of e.observations; track o.id) {
+                      <div class="obs">
+                        <span class="avatar-xs">{{ initials(o.recordedByName) }}</span>
+                        <div class="col grow" style="gap: 3px">
+                          <div class="row" style="gap: 6px">
+                            <span class="tiny muted"
+                              >{{ o.recordedByName }} · {{ o.recordedAt | date: 'd MMM, HH:mm' }}</span
+                            >
+                            <span class="grow"></span>
+                            <aur-status [status]="o.kind" />
+                          </div>
+                          <span class="small">{{ o.text }}</span>
+                          @if (o.measurement; as m) {
+                            <span class="meas small"
+                              ><b>{{ m.quantity }}</b> = {{ m.value }} {{ m.unit }}
+                              <span class="tiny muted">({{ m.method }})</span></span
+                            >
+                          }
+                        </div>
+                      </div>
+                    } @empty {
+                      <p class="small muted">No observations recorded yet.</p>
+                    }
+                  </div>
+                  @if (canObserve()) {
+                    <form
+                      class="obs-form"
+                      (submit)="$event.preventDefault(); addObservation()"
+                      data-testid="observation-form"
+                    >
+                      <div class="row" style="gap: 6px">
+                        <select
+                          class="select"
+                          style="height: 32px; width: 140px"
+                          aria-label="Observation type"
+                          [ngModel]="obs().kind"
+                          (ngModelChange)="patchObs({ kind: $event })"
+                          name="kind"
+                          data-testid="obs-kind"
+                        >
+                          <option value="observation">Observation</option>
+                          <option value="measurement">Measurement</option>
+                          <option value="hypothesis">Hypothesis</option>
+                        </select>
+                        <input
+                          class="input grow"
+                          style="height: 32px"
+                          placeholder="What did you observe?"
+                          aria-label="Observation text"
+                          [ngModel]="obs().text"
+                          (ngModelChange)="patchObs({ text: $event })"
+                          name="text"
+                          maxlength="1000"
+                          data-testid="obs-text"
+                        />
+                      </div>
+                      @if (obs().kind === 'measurement') {
+                        <div class="row" style="gap: 6px">
+                          <input
+                            class="input"
+                            style="height: 30px"
+                            placeholder="Quantity"
+                            aria-label="Measured quantity"
+                            [ngModel]="obs().quantity"
+                            (ngModelChange)="patchObs({ quantity: $event })"
+                            name="q"
+                            data-testid="obs-quantity"
+                          />
+                          <input
+                            class="input"
+                            style="height: 30px; width: 90px"
+                            placeholder="Value"
+                            aria-label="Value"
+                            [ngModel]="obs().value"
+                            (ngModelChange)="patchObs({ value: $event })"
+                            name="v"
+                            data-testid="obs-value"
+                          />
+                          <input
+                            class="input"
+                            style="height: 30px; width: 70px"
+                            placeholder="Unit"
+                            aria-label="Unit"
+                            [ngModel]="obs().unit"
+                            (ngModelChange)="patchObs({ unit: $event })"
+                            name="u"
+                          />
+                          <input
+                            class="input"
+                            style="height: 30px"
+                            placeholder="Method"
+                            aria-label="Measurement method"
+                            [ngModel]="obs().method"
+                            (ngModelChange)="patchObs({ method: $event })"
+                            name="m"
+                            data-testid="obs-method"
+                          />
+                        </div>
+                      }
+                      <div class="row" style="justify-content: flex-end">
+                        <span class="tiny muted grow"
+                          >Measurements need quantity, value, unit and method. Hypotheses are labelled as such.</span
+                        >
+                        <button
+                          class="btn sm primary"
+                          type="submit"
+                          [disabled]="busy() || !obs().text.trim() || !measurementValid()"
+                          data-testid="obs-add"
+                        >
+                          Add note
+                        </button>
+                      </div>
+                    </form>
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="empty-d">
+                <lucide-icon [img]="I.FlaskConical" [size]="32" />
+                <span class="small muted">Select an experiment, or create one on a saved version.</span>
+              </div>
+            }
+          </section>
+
+          <section class="card card-pad mini-graph" aria-label="Branching overview">
+            <div class="card-head" style="margin-bottom: 6px">
+              <h3 class="grow">Branching</h3>
+              <button class="btn sm ghost" (click)="tab.set('branching')" data-testid="open-branching">
+                <lucide-icon [img]="I.Maximize2" [size]="14" /> Expand
+              </button>
+            </div>
+            <aur-lineage-graph
+              class="g"
+              [nodes]="lineage()?.nodes ?? []"
+              [selectedId]="selectedVersionId()"
+              [draftBaseId]="lineage()?.draftBasedOnVersionId ?? null"
+              [compact]="true"
+              (selectVersion)="selectVersion($event)"
+            />
+          </section>
+
+          <section class="card card-pad perf" aria-label="Performance metrics">
+            <div class="card-head" style="margin-bottom: 6px">
+              <h3 class="grow">Recorded measurements</h3>
+              <span class="tiny muted">scientist-entered only</span>
+            </div>
+            @for (m of selected()?.observations ?? []; track m.id) {
+              @if (m.measurement; as mm) {
+                <div class="row meas-row">
+                  <span class="small grow">{{ mm.quantity }}</span
+                  ><b class="small">{{ mm.value }} {{ mm.unit }}</b>
+                </div>
+              }
+            }
+            <p class="tiny muted" style="margin-top: 6px">
+              Longevity, diffusion and stability are <b>Not assessed</b> unless recorded here as measurements.
+            </p>
+          </section>
+        </div>
+      }
+
+      @case ('branching') {
+        <div class="branch" data-testid="branching-view">
+          <section class="card big-graph">
+            <aur-lineage-graph
+              class="g"
+              [nodes]="lineage()?.nodes ?? []"
+              [selectedId]="selectedVersionId()"
+              [draftBaseId]="lineage()?.draftBasedOnVersionId ?? null"
+              (selectVersion)="selectVersion($event)"
+            />
+          </section>
+          <aside class="card card-pad node-side" data-testid="branch-side">
+            @if (selectedNode(); as n) {
+              <div class="row" style="gap: 12px">
+                <div class="d-art"><aur-scene-art key="waves" /></div>
+                <div class="col" style="gap: 3px">
+                  <h2>{{ n.versionLabel }} {{ ctx.project()?.name }}</h2>
+                  <span class="tiny muted"
+                    >Saved {{ n.savedAt | date: 'd MMM y, HH:mm' }} · total {{ n.totalPct.slice(0, -4) }} %</span
+                  >
+                  @if (n.id === lineage()?.draftBasedOnVersionId) {
+                    <span class="badge draft" style="align-self: flex-start">Current draft is based on this</span>
+                  }
+                </div>
+              </div>
+              @if (n.note) {
+                <p class="small" style="margin-top: 10px">{{ n.note }}</p>
+              }
+              <div class="actions">
+                <button
+                  class="btn sm"
+                  (click)="createBranch(n.id)"
+                  [disabled]="!ctx.canEdit()"
+                  data-testid="create-branch"
+                >
+                  <lucide-icon [img]="I.GitBranch" [size]="15" /> Create Branch
+                </button>
+                <button class="btn sm" (click)="compareWithParent(n.id)" [disabled]="!n.parentVersionId">
+                  <lucide-icon [img]="I.GitCompareArrows" [size]="15" /> Compare with parent
+                </button>
+                <button class="btn sm primary" (click)="openNew(n.id)" [disabled]="!ctx.canEdit()">
+                  <lucide-icon [img]="I.Plus" [size]="15" /> New experiment
+                </button>
+              </div>
+              <div class="kv">
+                <span class="tiny muted">Parent</span><span class="small">{{ parentLabel(n.parentVersionId) }}</span>
+                <span class="tiny muted">Latest validation</span
+                ><span>
+                  @if (n.latestValidation) {
+                    <aur-status [status]="n.latestValidation" />
+                  } @else {
+                    <span class="tiny muted">none</span>
+                  }
+                </span>
+                <span class="tiny muted">Latest review</span
+                ><span>
+                  @if (n.latestReview) {
+                    <aur-status [status]="n.latestReview" />
+                  } @else {
+                    <span class="tiny muted">none</span>
+                  }
+                </span>
+              </div>
+              <div class="section-title" style="margin: 14px 0 6px">Experiments on {{ n.versionLabel }}</div>
+              @for (e of versionExperiments(); track e.id) {
+                <button class="exp-link" (click)="selectExperiment(e); tab.set('history')">
+                  <b class="small">{{ e.title }}</b
+                  ><span class="tiny muted">{{ e.observations.length }} notes</span><aur-status [status]="e.status" />
+                </button>
+              } @empty {
+                <p class="small muted">None yet.</p>
+              }
+              <p class="tiny muted" style="margin-top: 12px">
+                Create Branch loads this version into the working draft. The next version you save records it as its
+                parent, which adds a new branch here.
+              </p>
+            } @else {
+              <p class="small muted">Select a version node.</p>
+            }
+          </aside>
+        </div>
+      }
+
+      @case ('compare') {
+        <div class="cmp-wrap"><aur-version-compare /></div>
+      }
+
+      @case ('notes') {
+        <section class="card card-pad notes" data-testid="notes-tab">
+          <div class="card-head">
+            <h2 class="grow">Scientist Notes ({{ allNotes().length }})</h2>
+            <select
+              class="select"
+              style="height: 32px; width: 160px"
+              aria-label="Filter note type"
+              [ngModel]="kindFilter()"
+              (ngModelChange)="kindFilter.set($event)"
+            >
+              <option value="">All notes</option>
+              <option value="observation">Observations</option>
+              <option value="measurement">Measurements</option>
+              <option value="hypothesis">Hypotheses</option>
+            </select>
+          </div>
+          <div class="scroll" style="flex: 1; min-height: 0">
+            @for (o of allNotes(); track o.id) {
+              <div class="obs">
+                <span class="avatar-xs">{{ initials(o.recordedByName) }}</span>
+                <div class="col grow" style="gap: 3px">
+                  <div class="row" style="gap: 6px">
+                    <span class="tiny muted"
+                      >{{ o.recordedByName }} · {{ o.recordedAt | date: 'd MMM y, HH:mm' }} · {{ o.experiment }} ({{
+                        o.versionLabel
+                      }})</span
+                    >
+                    <span class="grow"></span>
+                    <aur-status [status]="o.kind" />
+                  </div>
+                  <span class="small">{{ o.text }}</span>
+                  @if (o.measurement; as m) {
+                    <span class="meas small"
+                      ><b>{{ m.quantity }}</b> = {{ m.value }} {{ m.unit }}
+                      <span class="tiny muted">({{ m.method }})</span></span
+                    >
+                  }
+                </div>
+              </div>
+            } @empty {
+              <p class="small muted">No notes yet.</p>
+            }
+          </div>
+        </section>
+      }
+    }
+  </div>
+  @if (ui.aiPanelVisible('experiments')) {
+    <aur-ai-partner-panel workspace="experiments" />
+  }
+</div>
+
+@if (newOpen()) {
+  <div
+    class="overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ne-h"
+    (click)="newOpen.set(false)"
+    (keydown.escape)="newOpen.set(false)"
+  >
+    <form
+      class="dialog ne"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="newOpen.set(false)"
+      (submit)="$event.preventDefault(); createExperiment()"
+      data-testid="new-experiment-dialog"
+    >
+      <div class="row">
+        <h2 id="ne-h" class="grow" style="font-size: 18px">New experiment</h2>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="newOpen.set(false)">
+          <lucide-icon [img]="I.X" [size]="18" />
+        </button>
+      </div>
+      <p class="small muted">Experiments always reference one immutable saved version.</p>
+      <div class="field">
+        <label for="ne-v">Formula version</label>
+        <select
+          id="ne-v"
+          class="select"
+          name="v"
+          [ngModel]="form().formulaVersionId"
+          (ngModelChange)="patchForm({ formulaVersionId: $event })"
+          data-testid="ne-version"
+        >
+          @for (v of ctx.versions(); track v.id) {
+            <option [value]="v.id">{{ v.versionLabel }} · {{ v.totalPct.slice(0, -4) }} %</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="ne-t">Title</label
+        ><input
+          id="ne-t"
+          class="input"
+          name="t"
+          maxlength="80"
+          required
+          [ngModel]="form().title"
+          (ngModelChange)="patchForm({ title: $event })"
+          data-testid="ne-title"
+        />
+      </div>
+      <div class="field">
+        <label for="ne-o">Objective</label
+        ><input
+          id="ne-o"
+          class="input"
+          name="o"
+          maxlength="300"
+          [ngModel]="form().objective"
+          (ngModelChange)="patchForm({ objective: $event })"
+        />
+      </div>
+      <div class="field">
+        <label for="ne-m">Method</label
+        ><input
+          id="ne-m"
+          class="input"
+          name="m"
+          maxlength="500"
+          placeholder="e.g. smelling strip, 10 % in ethanol"
+          [ngModel]="form().method"
+          (ngModelChange)="patchForm({ method: $event })"
+        />
+      </div>
+      <div class="field">
+        <label for="ne-c">Conditions</label
+        ><input
+          id="ne-c"
+          class="input"
+          name="c"
+          maxlength="300"
+          placeholder="e.g. 22 °C, 45 % RH"
+          [ngModel]="form().conditions"
+          (ngModelChange)="patchForm({ conditions: $event })"
+        />
+      </div>
+      <div class="row" style="justify-content: flex-end">
+        <button type="button" class="btn ghost" (click)="newOpen.set(false)">Cancel</button>
+        <button
+          type="submit"
+          class="btn primary"
+          [disabled]="busy() || !form().title.trim() || !form().formulaVersionId"
+          data-testid="ne-create"
+        >
+          Create experiment
+        </button>
+      </div>
+    </form>
+  </div>
+}

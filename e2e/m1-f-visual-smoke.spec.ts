@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import * as path from 'node:path';
 import type { Page } from '@playwright/test';
 import { E2E_API } from './support/api-process';
+import { seedDemoHistory } from './support/demo-data';
 import { expect, openApp, projectId, test, waitForScene } from './support/fixtures';
 
 /**
@@ -120,16 +121,36 @@ test('visual smoke: implemented states by manifest ID', async ({ page, request }
   await expect(page.getByTestId('compare-table')).toBeVisible();
   await shot(page, 'FS-VC');
 
-  // M2 workspaces (shell + honest scope state)
-  for (const [ws, m, a] of [
-    ['validation', 'VS-M', 'VS-A'],
-    ['experiments', 'EE-M1', 'EE-A'],
-    ['review', 'SR-M', 'SR-A'],
-  ] as const) {
-    await page.getByTestId(`nav-${ws}`).click();
-    await shot(page, m);
-    await ai(page);
-    await shot(page, a);
-    await manual(page);
-  }
+  // M2 workspaces with real history: validation run, experiment + branch, review with comments
+  await seedDemoHistory(request, pid, ` s${Date.now() % 1000}`);
+  await page.reload();
+  await page.getByTestId('nav-validation').click();
+  await expect(page.getByTestId('vs-run-status')).toBeVisible();
+  await shot(page, 'VS-M');
+  await ai(page);
+  await shot(page, 'VS-A');
+  await manual(page);
+  await page.getByTestId('vs-tab-evidence').click();
+  await expect(page.getByTestId('vs-evidence-hash')).toBeVisible();
+  await shot(page, 'VS-E');
+
+  await page.getByTestId('nav-experiments').click();
+  await expect(page.getByTestId('experiment-detail')).toBeVisible();
+  await shot(page, 'EE-M1');
+  await ai(page);
+  await shot(page, 'EE-A');
+  await manual(page);
+  await page.getByTestId('ee-tab-branching').click();
+  await expect(page.getByTestId('branching-view')).toBeVisible();
+  await shot(page, 'EE-X');
+
+  await page.getByTestId('nav-review').click();
+  await expect(page.getByTestId('sr-version-detail')).toBeVisible();
+  await shot(page, 'SR-M');
+  await ai(page);
+  await shot(page, 'SR-A');
+  await manual(page);
+  await page.getByTestId('sr-tab-feedback').click();
+  await expect(page.getByTestId('sr-comments')).toBeVisible();
+  await shot(page, 'SR-X');
 });

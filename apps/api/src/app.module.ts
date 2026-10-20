@@ -1,6 +1,10 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { requestContext } from './common/request-context';
+import { AccessController } from './modules/access/access.controller';
 import { AiController } from './modules/ai/ai.controller';
+import { ExperimentsController, ExperimentsService } from './modules/experiments/experiments';
+import { ReviewsController, ReviewsService } from './modules/reviews/reviews';
+import { ValidationsController, ValidationsService } from './modules/validations/validations';
 import { FormulasController } from './modules/formulas/formulas.controller';
 import { FormulasService } from './modules/formulas/formulas.service';
 import { HealthController } from './modules/health/health.controller';
@@ -16,13 +20,26 @@ import { CatalogRepository, UnitOfWork } from './persistence/repositories';
  * PostgreSQL adapters planned for M3 can be swapped in without touching domain services.
  */
 @Module({
-  controllers: [HealthController, ProjectsController, IngredientsController, FormulasController, AiController],
+  controllers: [
+    HealthController,
+    AccessController,
+    ProjectsController,
+    IngredientsController,
+    FormulasController,
+    ValidationsController,
+    ExperimentsController,
+    ReviewsController,
+    AiController,
+  ],
   providers: [
     JsonUnitOfWork,
     { provide: UnitOfWork, useExisting: JsonUnitOfWork },
     { provide: CatalogRepository, useClass: FixtureCatalogRepository },
     ProjectsService,
     FormulasService,
+    ValidationsService,
+    ExperimentsService,
+    ReviewsService,
   ],
 })
 export class AppModule implements NestModule {

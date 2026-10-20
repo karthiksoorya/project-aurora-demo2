@@ -1,4 +1,8 @@
 import type {
+  Experiment,
+  Membership,
+  ReviewRequest,
+  ValidationRun,
   AuditEvent,
   Brief,
   FormulaDraft,
@@ -54,6 +58,33 @@ export interface IngredientCatalogRepository {
   structure(compoundId: string): StructureFixture | undefined;
 }
 
+export interface MembershipRepository {
+  listByProject(projectId: string): Membership[];
+  get(projectId: string, userId: string): Membership | undefined;
+  upsert(m: Membership): void;
+}
+
+/** Validation runs are append-only evidence records. */
+export interface ValidationRepository {
+  insert(r: ValidationRun): void;
+  get(id: string): ValidationRun | undefined;
+  listByProject(projectId: string): ValidationRun[];
+}
+
+export interface ExperimentRepository {
+  insert(e: Experiment): void;
+  update(e: Experiment): void;
+  get(id: string): Experiment | undefined;
+  listByProject(projectId: string): Experiment[];
+}
+
+export interface ReviewRepository {
+  insert(r: ReviewRequest): void;
+  update(r: ReviewRequest): void;
+  get(id: string): ReviewRequest | undefined;
+  listByProject(projectId: string): ReviewRequest[];
+}
+
 /** A unit of work exposes repositories bound to one consistent snapshot / transaction. */
 export interface AuroraTx {
   projects: ProjectRepository;
@@ -62,6 +93,10 @@ export interface AuroraTx {
   versions: FormulaVersionRepository;
   audit: AuditRepository;
   uploads: UploadRepository;
+  memberships: MembershipRepository;
+  validations: ValidationRepository;
+  experiments: ExperimentRepository;
+  reviews: ReviewRepository;
 }
 
 export abstract class UnitOfWork {

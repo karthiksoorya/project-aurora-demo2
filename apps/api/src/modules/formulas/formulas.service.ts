@@ -3,9 +3,10 @@ import { HUNDRED_PCT, formatPct, parsePct, shareOf } from '../../common/decimal'
 import { badRequest, conflict, notFound, unprocessable } from '../../common/errors';
 import { sha256Canonical } from '../../common/hash';
 import { newId } from '../../common/ids';
-import { DEMO_USER } from '../../common/request-context';
+import { currentUser } from '../../common/request-context';
 import type { DraftItem, FormulaDraft, FormulaSnapshot, FormulaVersion } from '../../domain/types';
 import { CatalogRepository, UnitOfWork, type AuroraTx } from '../../persistence/repositories';
+import { ANY_ROLE, OWNER, requireRole } from '../access/access';
 import { audit } from '../audit/audit';
 import { completenessOf, computeFormula, normalize } from './formula-engine';
 import type { CreateVersionDto, UpdateDraftDto } from './formula.dto';
@@ -21,8 +22,8 @@ export class FormulasService {
     return { ...d, computed: computeFormula(d.items, (id) => this.catalog.get(id), d.batchSizeG) };
   }
 
-  private requireProject(tx: AuroraTx, projectId: string) {
-    if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
+  private requireProject(tx: AuroraTx, projectId: string, roles = ANY_ROLE, action = 'view this formula') {
+    requireRole(tx, projectId, roles, action);
     const d = tx.drafts.getByProject(projectId);
     if (!d) throw notFound('Formula draft', projectId);
     return d;
@@ -57,7 +58,7 @@ export class FormulasService {
   async updateDraft(projectId: string, dto: UpdateDraftDto) {
     const items = this.validateItems(dto.items);
     const d = await this.uow.write((tx) => {
-      const cur = this.requireProject(tx, projectId);
+      const cur = this.requireProject(tx, projectId, OWNER, 'edit the formula draft');
       if (cur.revision !== dto.revision)
         throw conflict('STALE_REVISION', 'Draft was changed elsewhere; reload before saving', {
           expectedRevision: dto.revision,
@@ -70,7 +71,7 @@ export class FormulasService {
         batchSizeG: dto.batchSizeG ?? cur.batchSizeG,
         revision: cur.revision + 1,
         updatedAt: now,
-        updatedBy: DEMO_USER.id,
+        updatedBy: currentUser().id,
       };
       tx.drafts.upsert(next);
       tx.projects.touch(projectId, now);
@@ -81,7 +82,7 @@ export class FormulasService {
 
   async normalizeDraft(projectId: string, revision: number) {
     const d = await this.uow.write((tx) => {
-      const cur = this.requireProject(tx, projectId);
+      const cur = this.requireProject(tx, projectId, OWNER, 'normalise the formula');
       if (cur.revision !== revision)
         throw conflict('STALE_REVISION', 'Draft was changed elsewhere', {
           expectedRevision: revision,
@@ -115,7 +116,7 @@ export class FormulasService {
 
   async createVersion(projectId: string, dto: CreateVersionDto) {
     return this.uow.write((tx) => {
-      const draft = this.requireProject(tx, projectId);
+      const draft = this.requireProject(tx, projectId, OWNER, 'save formula versions');
       if (draft.revision !== dto.expectedDraftRevision)
         throw conflict('STALE_REVISION', 'Draft changed since you opened the save dialog', {
           expectedRevision: dto.expectedDraftRevision,
@@ -164,7 +165,7 @@ export class FormulasService {
         snapshot,
         snapshotHash: sha256Canonical(snapshot),
         hashAlgorithm: 'sha256-canonical-json-v1',
-        savedBy: DEMO_USER.id,
+        savedBy: currentUser().id,
         savedAt: now,
       };
       tx.versions.insert(version);
@@ -192,7 +193,7 @@ export class FormulasService {
 
   async listVersions(projectId: string) {
     return this.uow.read((tx) => {
-      if (!tx.projects.get(projectId)) throw notFound('Project', projectId);
+      requireRole(tx, projectId, ANY_ROLE, 'view versions');
       return tx.versions.listByProject(projectId).map((v) => ({
         id: v.id,
         versionLabel: v.versionLabel,
@@ -209,7 +210,11 @@ export class FormulasService {
   }
 
   async getVersion(versionId: string) {
-    const v = await this.uow.read((tx) => tx.versions.get(versionId));
+    const v = await this.uow.read((tx) => {
+      const found = tx.versions.get(versionId);
+      if (found) requireRole(tx, found.projectId, ANY_ROLE, 'view versions');
+      return found;
+    });
     if (!v) throw notFound('Formula version', versionId);
     return { ...v, hashVerified: sha256Canonical(v.snapshot) === v.snapshotHash };
   }
@@ -314,7 +319,7 @@ export class FormulasService {
     const d = await this.uow.write((tx) => {
       const v = tx.versions.get(versionId);
       if (!v) throw notFound('Formula version', versionId);
-      const draft = this.requireProject(tx, v.projectId);
+      const draft = this.requireProject(tx, v.projectId, OWNER, 'load a version into the draft');
       if (expectedDraftRevision !== undefined && draft.revision !== expectedDraftRevision)
         throw conflict('STALE_REVISION', 'Draft changed; reload before loading a version', {
           expectedRevision: expectedDraftRevision,
@@ -333,7 +338,7 @@ export class FormulasService {
         })),
         revision: draft.revision + 1,
         updatedAt: now,
-        updatedBy: DEMO_USER.id,
+        updatedBy: currentUser().id,
       };
       tx.drafts.upsert(next);
       audit(

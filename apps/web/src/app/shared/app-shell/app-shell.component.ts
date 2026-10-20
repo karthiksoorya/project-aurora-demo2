@@ -95,6 +95,17 @@ import { WORKSPACES } from './nav';
             <button class="btn sm" (click)="retry()">Retry</button>
           </div>
         } @else if (ready()) {
+          @if (!ctx.canEdit()) {
+            <div class="ro-banner" role="status" data-testid="readonly-banner">
+              <lucide-icon [img]="I.Lock" [size]="14" />
+              Acting as <b>{{ ctx.session.current()?.name }}</b> ({{ ctx.myRole() }}): brief, formula and versions are
+              read-only.{{
+                ctx.myRole() === 'reviewer'
+                  ? ' You can comment on reviews you are invited to and record experiment observations.'
+                  : ' You can view everything.'
+              }}
+            </div>
+          }
           <router-outlet />
         } @else {
           <div class="loading" aria-busy="true">Loading workspace…</div>

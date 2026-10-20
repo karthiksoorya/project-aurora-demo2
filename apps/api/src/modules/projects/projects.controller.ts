@@ -64,7 +64,12 @@ export class ProjectsController {
   }
 
   @Get('projects/:projectId/audit')
-  audit(@Param('projectId', uuid) id: string, @Query('limit') limit?: string) {
-    return this.svc.audit(id, Number(limit ?? 50) || 50);
+  audit(
+    @Param('projectId', uuid) id: string,
+    @Query('limit') limit?: string,
+    @Query('action') action?: string,
+    @Query('targetId') targetId?: string,
+  ) {
+    return this.svc.audit(id, Number(limit ?? 50) || 50, action, targetId);
   }
 }

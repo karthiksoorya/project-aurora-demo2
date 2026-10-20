@@ -28,12 +28,22 @@ blocked M0/M1; each item is a candidate for review.
 4. **Version comparison (FS-VC)** — supports two versions at a time (reference shows three columns).
    "Key Metrics Comparison" and "Sensory description" show Not assessed.
 5. **Formula Studio tabs** — *Formula Variations* = version history; *Stability & Compliance* links to
-   Validation Studio (M2).
+   Validation Studio.
 6. **Ingredient Explorer tabs** — *Properties* and *Sustainability* tabs of the reference are folded into the
    detail panel tabs (Properties, Safety & Regulatory).
 7. **Brand mark** — neutral hexagon logo; no employer branding (as required).
 8. Category tiles in Ingredient Explorer use colour swatches rather than photos; counts are real catalog counts
    (25 demo ingredients), not the reference's 124/186.
+9. **Validation Studio (VS-*)** — the reference shows green IFRA/allergen ticks and a 'Compliant' overall
+   badge. No verified IFRA or allergen dataset is configured, so those rule sets report **Not assessed**
+   with their missing inputs, and the overall status can never be better than *Not assessed* while they
+   are selected. Only deterministic formula checks (total, negatives, duplicates, catalog presence,
+   snapshot integrity) and data completeness can pass or fail.
+10. **Experiment Explorer (EE-*)** — reference performance numbers (longevity, sillage scores, panel
+   ratings) are not shown; the table shows only what a scientist recorded. Measurements require quantity,
+   value, unit and method; hypotheses are labelled.
+11. **Share & Review (SR-*)** — 'Share link' / external invite are replaced by in-app members with
+   simulated users (no outbound sharing, no publishing). Avatars are initials, not photos.
 
 ## C. Decisions taken on open items (spec §10) — please confirm or redirect
 | # | Open item | Decision taken for M1 (reversible) |
@@ -41,14 +51,15 @@ blocked M0/M1; each item is a candidate for review.
 | 1 | Canonical Formula Manual image | FS-M1 baseline (per manifest); FS-M2/M3 as states |
 | 2 | Canonical Universe image | IE-U1 baseline; IE-U2 selection; IE-U3 expanded |
 | 3 | Molecular Inspector alternatives | One reusable inspector; FS-MI2 = constituent focus of a mixture |
-| 4 | Experiment/Share roles & mode toggle | Shell + AI mode now; workflows in M2 |
+| 4 | Experiment/Share roles & mode toggle | One global Manual/AI switch (confirmed). Roles per project: owner / reviewer / viewer |
 | 5 | FS-06 vs Formula parent | Implemented as the AI-mode expanded state of the same canvas/draft/selection |
-| 6 | Local demo identity | Single simulated user "Senior Perfumer" (owner); roles simulation in M2 |
-| 7 | Formula completion rule | Drafts may be any total; saving a version is **allowed** for incomplete/over totals and the snapshot is labelled `incomplete`/`over`; nothing is normalised without the explicit Normalize action. Validation (M2) can require 100 %. |
+| 6 | Local demo identity | Four simulated users (confirmed): Senior Perfumer (owner), Product Development & Regulatory Affairs (reviewers), Marketing (viewer); header switcher; **not authentication** |
+| 7 | Formula completion rule | Drafts may be any total; saving a version is **allowed** for incomplete/over totals and the snapshot is labelled `incomplete`/`over`; nothing is normalised without the explicit Normalize action. Saving incomplete versions is allowed and labelled (confirmed); validation FC-001 **fails** them. |
 | — | Mode scope | Manual/AI mode is global (one header switch); AI panel visibility is remembered per workspace |
 | — | UI state persistence | Mode, canvas, selection, cameras, filters persist per browser (localStorage); business data persists in the API |
 
 ## D. Known limitations
 * JSON persistence is single-process; concurrent editing by several users is out of scope until M3.
 * Registry verification of identifiers (CAS/PubChem) is pending — the build is offline by design.
-* Validation, Experiment and Share & Review workflows are M2.
+* Roles are simulated via a request header; anyone with local access can act as any user. Real auth is out of scope for the POC.
+* Regulatory/allergen rule sets are placeholders until a licensed, verified dataset is supplied.

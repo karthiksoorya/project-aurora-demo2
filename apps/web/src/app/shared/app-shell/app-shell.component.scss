@@ -188,3 +188,17 @@
     display: none;
   }
 }
+
+.ro-banner {
+  flex: none !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #f3efff;
+  color: #4b2fa3;
+  font-size: 12.5px;
+  border: 1px solid #e2d8fb;
+}

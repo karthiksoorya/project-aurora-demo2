@@ -1,0 +1,700 @@
+<div class="page-head">
+  <span class="ws-icon"><lucide-icon [img]="I.Users" [size]="30" style="color: #2f7bff" /></span>
+  <h1 data-testid="workspace-title">Share &amp; Review</h1>
+  <span class="sub">Share saved versions, collect feedback and track decisions</span>
+  <span class="grow"></span>
+  <button class="btn" (click)="downloadReport()" [disabled]="!review()">
+    <lucide-icon [img]="I.Download" [size]="16" /> Download Report
+  </button>
+  <button
+    class="btn primary"
+    (click)="openRequest()"
+    [disabled]="!ctx.canEdit() || !ctx.versions().length"
+    data-testid="request-review"
+  >
+    <lucide-icon [img]="I.Send" [size]="16" /> Request Review
+  </button>
+  @if (ui.mode() === 'ai' && !ui.aiPanelVisible('review')) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('review', true)">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+<div class="tabs ws-tabs" role="tablist">
+  @for (
+    t of [
+      ['versions', 'Versions & Sharing', 'History'],
+      ['feedback', 'Review & Feedback', 'Users'],
+      ['audit', 'Audit History', 'Activity'],
+    ];
+    track t[0]
+  ) {
+    <button
+      class="tab"
+      role="tab"
+      [class.on]="tab() === t[0]"
+      [attr.aria-selected]="tab() === t[0]"
+      (click)="tab.set($any(t[0]))"
+      [attr.data-testid]="'sr-tab-' + t[0]"
+    >
+      <lucide-icon [img]="$any(I)[t[2]]" [size]="16" /> {{ t[1] }}
+    </button>
+  }
+</div>
+
+<div class="layout" [class.with-ai]="ui.aiPanelVisible('review')">
+  <div class="main">
+    @switch (tab()) {
+      @case ('versions') {
+        <div class="vgrid">
+          <section class="card card-pad vlist" aria-label="Version history">
+            <div class="card-head">
+              <h2 class="grow">Version History</h2>
+              <span class="tiny muted">immutable</span>
+            </div>
+            <div class="scroll" style="flex: 1; min-height: 0">
+              @for (n of (lineage()?.nodes ?? []).slice().reverse(); track n.id) {
+                <button
+                  class="vrow"
+                  [class.on]="n.id === versionId()"
+                  (click)="selectVersion(n.id)"
+                  [attr.data-testid]="'sr-version-' + n.versionLabel"
+                >
+                  <div class="v-art"><aur-scene-art key="waves" /></div>
+                  <span class="col grow" style="gap: 2px; align-items: flex-start; min-width: 0">
+                    <b class="small">{{ n.versionLabel }}</b>
+                    <span class="tiny muted">{{ n.savedAt | date: 'd MMM y, HH:mm' }}</span>
+                  </span>
+                  @if (latestReview(n.id); as r) {
+                    <aur-status [status]="r.status" />
+                  } @else {
+                    <span class="badge na">Not shared</span>
+                  }
+                  <span class="tiny muted" title="Reviews">{{ reviewCount(n.id) }}</span>
+                </button>
+              } @empty {
+                <p class="small muted">No saved versions yet.</p>
+              }
+            </div>
+          </section>
+
+          <section class="card card-pad vdetail" aria-label="Selected version details" data-testid="sr-version-detail">
+            @if (node(); as n) {
+              <div class="row" style="gap: 14px; align-items: flex-start">
+                <div class="hero"><aur-scene-art key="coastal" /></div>
+                <div class="col grow" style="gap: 6px; min-width: 0">
+                  <div class="row" style="gap: 8px">
+                    <h2>{{ ctx.project()?.name }}</h2>
+                    <span class="badge ok">{{ n.versionLabel }}</span>
+                    @if (latestReview(n.id); as r) {
+                      <aur-status [status]="r.status" />
+                    }
+                  </div>
+                  <p class="small" style="color: var(--ink-2)">{{ ctx.briefEdit()?.description }}</p>
+                  <div class="row" style="gap: 5px; flex-wrap: wrap">
+                    @for (k of ctx.briefEdit()?.keywords ?? []; track k) {
+                      <span class="chip">{{ k }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="meta">
+                <div>
+                  <span class="tiny muted">Saved</span><b class="small">{{ n.savedAt | date: 'd MMM y' }}</b>
+                </div>
+                <div>
+                  <span class="tiny muted">Total</span><b class="small">{{ n.totalPct.slice(0, -4) }} %</b>
+                </div>
+                <div>
+                  <span class="tiny muted">Experiments</span><b class="small">{{ n.experiments }}</b>
+                </div>
+                <div>
+                  <span class="tiny muted">Validation</span>
+                  @if (n.latestValidation) {
+                    <aur-status [status]="n.latestValidation" />
+                  } @else {
+                    <span class="tiny muted">not run</span>
+                  }
+                </div>
+                <div>
+                  <span class="tiny muted">Hash</span
+                  ><span class="tiny mono">{{ snapshot()?.snapshotHash?.slice(0, 12) }}…</span>
+                </div>
+              </div>
+              <div class="row" style="margin: 6px 0">
+                <span class="section-title grow">Formula composition</span>
+                <button class="btn sm ghost" (click)="openInFormula()">
+                  <lucide-icon [img]="I.FlaskConical" [size]="14" /> Open in Formula Studio
+                </button>
+              </div>
+              <div class="scroll" style="flex: 1; min-height: 0">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Ingredient</th>
+                      <th>Name</th>
+                      <th>% w/w</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (it of snapshot()?.snapshot?.items ?? []; track it.lineId; let i = $index) {
+                      @let ing = ctx.ingredient(it.ingredientId);
+                      <tr>
+                        <td class="tiny muted">{{ i + 1 }}</td>
+                        <td>
+                          <div class="row">
+                            @if (ing) {
+                              <aur-ingredient-art [motif]="ing.art.motif" [hue]="ing.art.hue" [size]="24" />
+                            }
+                            <b class="small">{{ it.ingredientName }}</b>
+                          </div>
+                        </td>
+                        <td class="tiny muted">{{ ing?.systematicName }}</td>
+                        <td class="small mono">{{ (+it.massPct).toFixed(2) }}</td>
+                        <td>
+                          <span
+                            class="chip"
+                            [style.background]="role(it.role).tint"
+                            [style.color]="role(it.role).ink"
+                            >{{ role(it.role).label }}</span
+                          >
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="small muted">Select a version.</p>
+            }
+          </section>
+
+          <section class="card card-pad status" aria-label="Review status" data-testid="sr-status">
+            <div class="card-head">
+              <h3 class="grow">Review Status</h3>
+              @if (versionReview(); as r) {
+                <aur-status [status]="r.status" data-testid="sr-review-status" />
+              }
+            </div>
+            @if (versionReview(); as r) {
+              <ol class="stepper">
+                @for (s of steps(); track s.label) {
+                  <li [class.done]="s.done">
+                    <span class="dotx">{{ s.done ? '✓' : '' }}</span
+                    ><span class="col" style="gap: 0"
+                      ><b class="tiny">{{ s.label }}</b
+                      ><span class="tiny muted">{{ s.sub }}</span></span
+                    >
+                  </li>
+                }
+              </ol>
+              <div class="section-title" style="margin: 10px 0 6px">{{ r.title }}</div>
+              @for (rv of r.reviewers; track rv.userId) {
+                @let m = member(rv.userId);
+                <div class="rv">
+                  <span class="avatar-xs">{{ m?.initials }}</span>
+                  <span class="col grow" style="gap: 0"
+                    ><b class="small">{{ m?.name }}</b
+                    ><span class="tiny muted">{{
+                      rv.permission === 'approve' ? 'Can approve' : 'Can comment'
+                    }}</span></span
+                  >
+                  @if (
+                    r.decisions
+                      .slice()
+                      .reverse()
+                      .find((d) => d.userId === rv.userId);
+                    as d
+                  ) {
+                    <aur-status [status]="d.decision" />
+                  } @else {
+                    <span class="tiny muted">pending</span>
+                  }
+                </div>
+              }
+              <button class="btn sm soft" style="margin-top: 8px" (click)="openReview(r)" data-testid="open-feedback">
+                Open review &amp; feedback
+              </button>
+            } @else {
+              <p class="small muted">This version has not been shared for review.</p>
+              @if (ctx.canEdit()) {
+                <button class="btn sm primary" (click)="openRequest()">Request review</button>
+              }
+            }
+          </section>
+
+          <section class="card card-pad sharing" aria-label="Sharing and permissions" data-testid="sr-members">
+            <div class="card-head">
+              <h3 class="grow">Sharing &amp; Permissions</h3>
+              <span class="tiny muted">project roles · simulated users</span>
+            </div>
+            @for (m of members(); track m.userId) {
+              <div class="rv">
+                <span class="avatar-xs">{{ m.initials }}</span>
+                <span class="col grow" style="gap: 0"
+                  ><b class="small">{{ m.name }}{{ m.userId === meId() ? ' (you)' : '' }}</b
+                  ><span class="tiny muted">{{ m.title }}</span></span
+                >
+                @if (ctx.canEdit()) {
+                  <select
+                    class="select"
+                    style="height: 28px; width: 112px; font-size: 12px"
+                    [attr.aria-label]="'Role for ' + m.name"
+                    [ngModel]="m.role"
+                    (ngModelChange)="setRole(m.userId, $event)"
+                    [attr.data-testid]="'role-' + m.initials"
+                  >
+                    <option value="owner">Owner</option>
+                    <option value="reviewer">Reviewer</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                } @else {
+                  <span class="badge info">{{ m.role }}</span>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="card card-pad feedback-mini" aria-label="Recent feedback">
+            <div class="card-head">
+              <h3 class="grow">Recent Feedback</h3>
+              <span class="tiny muted">{{ versionReview()?.comments?.length ?? 0 }}</span>
+            </div>
+            @for (c of (versionReview()?.comments ?? []).slice(-3).reverse(); track c.id) {
+              <div class="cm">
+                <span class="avatar-xs">{{ initials(c.authorName) }}</span>
+                <span class="col grow" style="gap: 2px"
+                  ><span class="tiny muted">{{ c.authorName }} · {{ c.createdAt | date: 'd MMM, HH:mm' }}</span
+                  ><span class="small">{{ c.comment }}</span></span
+                >
+                <span class="badge violet">{{ c.kind }}</span>
+              </div>
+            } @empty {
+              <p class="small muted">No feedback yet.</p>
+            }
+          </section>
+
+          <section class="card card-pad audit-mini" aria-label="Audit history">
+            <div class="card-head">
+              <h3 class="grow">Audit History</h3>
+              <button class="btn sm ghost" (click)="tab.set('audit')">View all</button>
+            </div>
+            @for (e of events().slice(0, 5); track e.id) {
+              <div class="ev">
+                <i class="dot" [style.background]="e.action.startsWith('review') ? '#8b5cf6' : '#1f66ff'"></i
+                ><span class="small grow">{{ e.action }}</span
+                ><span class="tiny muted">{{ e.actorName }} · {{ e.occurredAt | date: 'd MMM, HH:mm' }}</span>
+              </div>
+            }
+          </section>
+        </div>
+      }
+
+      @case ('feedback') {
+        <div class="fgrid" data-testid="sr-feedback">
+          @if (review(); as r) {
+            <section class="card card-pad snap" aria-label="Formula snapshot">
+              <div class="row" style="gap: 10px">
+                <h2 class="grow">{{ r.title }}</h2>
+                <span class="badge ok">{{ r.versionLabel }}</span>
+                <aur-status [status]="r.status" />
+              </div>
+              <span class="tiny muted"
+                >Requested {{ r.createdAt | date: 'd MMM y, HH:mm' }} by {{ member(r.requestedBy)?.name }} · snapshot
+                sha256 {{ r.snapshotHash.slice(0, 16) }}…</span
+              >
+              @if (r.message) {
+                <p class="small" style="margin: 8px 0">{{ r.message }}</p>
+              }
+              <div class="snap-grid">
+                <div class="scroll" style="min-height: 0">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Ingredient</th>
+                        <th>% w/w</th>
+                        <th>Role</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (it of snapshot()?.snapshot?.items ?? []; track it.lineId) {
+                        <tr>
+                          <td class="small">
+                            <b>{{ it.ingredientName }}</b>
+                          </td>
+                          <td class="small mono">{{ (+it.massPct).toFixed(2) }}</td>
+                          <td class="small">{{ role(it.role).label }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="pyr-mini">
+                  @for (
+                    t of [
+                      ['top', 'Top Note', '#f7c331'],
+                      ['heart', 'Heart Note', '#e57ad0'],
+                      ['base', 'Base Note', '#3f86de'],
+                    ];
+                    track t[0]
+                  ) {
+                    <div class="tier" [style.border-left-color]="t[2]">
+                      <b class="small">{{ t[1] }}</b>
+                      <span class="tiny muted">{{ $any(pyramid(snapshot()))[t[0]].join(', ') || '—' }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="sumrow">
+                <div>
+                  <b>{{ summary().comments }}</b
+                  ><span class="tiny muted">Feedback</span>
+                </div>
+                <div>
+                  <b>{{ summary().suggestions }}</b
+                  ><span class="tiny muted">Suggestions</span>
+                </div>
+                <div>
+                  <b>{{ summary().info }}</b
+                  ><span class="tiny muted">Information</span>
+                </div>
+                <div>
+                  <b>{{ summary().decisions }}</b
+                  ><span class="tiny muted">Decisions</span>
+                </div>
+              </div>
+              @if (ctx.canEdit() && (r.status === 'submitted' || r.status === 'changes_requested')) {
+                <button class="btn sm danger" style="align-self: flex-start" (click)="withdraw()">
+                  Withdraw request
+                </button>
+              }
+            </section>
+
+            <section class="card card-pad thread" aria-label="Comments">
+              <div class="card-head">
+                <h3 class="grow">Comments ({{ r.comments.length }})</h3>
+                <select
+                  class="select"
+                  style="height: 30px; width: 170px"
+                  aria-label="Pick review"
+                  [ngModel]="r.id"
+                  (ngModelChange)="reviewId.set($event)"
+                >
+                  @for (x of reviews(); track x.id) {
+                    <option [value]="x.id">{{ x.versionLabel }} · {{ x.title }}</option>
+                  }
+                </select>
+              </div>
+              <div class="scroll" style="flex: 1; min-height: 0" data-testid="sr-comments">
+                @for (c of r.comments; track c.id) {
+                  <div class="cm">
+                    <span class="avatar-xs">{{ initials(c.authorName) }}</span>
+                    <span class="col grow" style="gap: 3px">
+                      <span class="row" style="gap: 6px"
+                        ><b class="small">{{ c.authorName }}</b
+                        ><span class="tiny muted">{{ c.createdAt | date: 'd MMM y, HH:mm' }}</span></span
+                      >
+                      <span class="small">{{ c.comment }}</span>
+                      <span class="badge violet" style="align-self: flex-start">{{ c.kind }}</span>
+                    </span>
+                  </div>
+                } @empty {
+                  <p class="small muted">No comments yet.</p>
+                }
+                @for (d of r.decisions; track d.id) {
+                  <div class="cm decision">
+                    <span class="avatar-xs">{{ initials(d.userName) }}</span>
+                    <span class="col grow" style="gap: 3px">
+                      <span class="row" style="gap: 6px"
+                        ><b class="small">{{ d.userName }}</b
+                        ><aur-status [status]="d.decision" /><span class="tiny muted">{{
+                          d.decidedAt | date: 'd MMM, HH:mm'
+                        }}</span></span
+                      >
+                      @if (d.reason) {
+                        <span class="small">{{ d.reason }}</span>
+                      }
+                    </span>
+                  </div>
+                }
+              </div>
+              @if (canComment()) {
+                <form class="cform" (submit)="$event.preventDefault(); addComment()" data-testid="comment-form">
+                  <textarea
+                    class="textarea"
+                    rows="2"
+                    maxlength="2000"
+                    placeholder="Add feedback…"
+                    aria-label="Comment"
+                    [ngModel]="commentText()"
+                    (ngModelChange)="commentText.set($event)"
+                    name="c"
+                    data-testid="comment-text"
+                  ></textarea>
+                  <div class="row">
+                    <select
+                      class="select"
+                      style="height: 30px; width: 140px"
+                      aria-label="Comment type"
+                      [ngModel]="commentKind()"
+                      (ngModelChange)="commentKind.set($event)"
+                      name="k"
+                    >
+                      <option value="feedback">Feedback</option>
+                      <option value="suggestion">Suggestion</option>
+                      <option value="information">Information</option>
+                    </select>
+                    <span class="grow"></span>
+                    <button
+                      class="btn sm primary"
+                      type="submit"
+                      [disabled]="busy() || !commentText().trim()"
+                      data-testid="comment-post"
+                    >
+                      Post comment
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <p class="tiny muted ro" data-testid="comment-readonly">
+                  {{
+                    ctx.myRole() === 'viewer'
+                      ? 'Viewers can read reviews but cannot comment or decide.'
+                      : 'Only reviewers invited to this request can comment.'
+                  }}
+                </p>
+              }
+            </section>
+
+            <section class="card card-pad decide" aria-label="Decision" data-testid="sr-decision">
+              <div class="card-head"><h3 class="grow">Decision</h3></div>
+              @if (canDecide()) {
+                <textarea
+                  class="textarea"
+                  rows="3"
+                  maxlength="1000"
+                  placeholder="Reason (required to request changes or reject)"
+                  aria-label="Decision reason"
+                  [ngModel]="decisionReason()"
+                  (ngModelChange)="decisionReason.set($event)"
+                  data-testid="decision-reason"
+                ></textarea>
+                <div class="col" style="margin-top: 8px">
+                  <button
+                    class="btn primary"
+                    (click)="decide('approved')"
+                    [disabled]="busy()"
+                    data-testid="decide-approve"
+                  >
+                    <lucide-icon [img]="I.Check" [size]="15" /> Approve {{ r.versionLabel }}
+                  </button>
+                  <button
+                    class="btn"
+                    (click)="decide('changes_requested')"
+                    [disabled]="busy() || !decisionReason().trim()"
+                    data-testid="decide-changes"
+                  >
+                    Request changes
+                  </button>
+                  <button
+                    class="btn danger"
+                    (click)="decide('rejected')"
+                    [disabled]="busy() || !decisionReason().trim()"
+                  >
+                    Reject
+                  </button>
+                </div>
+              } @else {
+                <p class="small muted" data-testid="decision-locked">
+                  @if (r.status === 'approved' || r.status === 'rejected' || r.status === 'withdrawn') {
+                    This review is closed ({{ r.status }}).
+                  } @else if (ctx.myRole() === 'owner') {
+                    Requesters cannot approve their own review. Approvers: {{ r.reviewers.length ? '' : 'none' }}
+                  } @else {
+                    You do not have approval permission on this review.
+                  }
+                </p>
+              }
+              <div class="section-title" style="margin: 14px 0 6px">Reviewers</div>
+              @for (rv of r.reviewers; track rv.userId) {
+                <div class="rv">
+                  <span class="avatar-xs">{{ member(rv.userId)?.initials }}</span
+                  ><span class="small grow">{{ member(rv.userId)?.name }}</span
+                  ><span class="tiny muted">{{ rv.permission }}</span>
+                </div>
+              }
+            </section>
+          } @else {
+            <div class="card card-pad" style="grid-column: 1 / -1">
+              <p class="small muted">
+                No review requests yet. {{ ctx.canEdit() ? 'Use Request Review to share a saved version.' : '' }}
+              </p>
+            </div>
+          }
+        </div>
+      }
+
+      @case ('audit') {
+        <section class="card card-pad audit" data-testid="sr-audit">
+          <div class="card-head">
+            <h2 class="grow">Audit History</h2>
+            <span class="tiny muted">append-only · local</span>
+            <select
+              class="select"
+              style="height: 32px; width: 200px"
+              aria-label="Filter events"
+              [ngModel]="auditFilter()"
+              (ngModelChange)="auditFilter.set($event)"
+              data-testid="audit-filter"
+            >
+              <option value="">All events</option>
+              <option value="version.">Versions</option>
+              <option value="draft.">Draft</option>
+              <option value="brief.">Brief</option>
+              <option value="validation.">Validation</option>
+              <option value="experiment.">Experiments</option>
+              <option value="review.">Reviews</option>
+              <option value="access.">Access</option>
+            </select>
+          </div>
+          <div class="scroll" style="flex: 1; min-height: 0">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Who</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of events(); track e.id) {
+                  <tr>
+                    <td class="tiny">{{ e.occurredAt | date: 'd MMM y, HH:mm:ss' }}</td>
+                    <td class="small">{{ e.actorName }}</td>
+                    <td class="small mono">{{ e.action }}</td>
+                    <td class="tiny muted">{{ e.targetType }} · {{ e.targetId.slice(0, 8) }}</td>
+                    <td class="tiny muted">
+                      {{ $any(e.payload)['versionLabel'] ?? '' }}
+                      {{ $any(e.payload)['status'] ?? $any(e.payload)['decision'] ?? '' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+    }
+  </div>
+  @if (ui.aiPanelVisible('review')) {
+    <aur-ai-partner-panel workspace="review" />
+  }
+</div>
+
+@if (reqOpen()) {
+  <div
+    class="overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="rq-h"
+    (click)="reqOpen.set(false)"
+    (keydown.escape)="reqOpen.set(false)"
+  >
+    <form
+      class="dialog rq"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="reqOpen.set(false)"
+      (submit)="$event.preventDefault(); submitRequest()"
+      data-testid="request-dialog"
+    >
+      <div class="row">
+        <h2 id="rq-h" class="grow" style="font-size: 18px">Request review</h2>
+        <button type="button" class="icon-btn" aria-label="Close" (click)="reqOpen.set(false)">
+          <lucide-icon [img]="I.X" [size]="18" />
+        </button>
+      </div>
+      <div class="field">
+        <label for="rq-v">Saved version</label>
+        <select
+          id="rq-v"
+          class="select"
+          name="v"
+          [ngModel]="req().formulaVersionId"
+          (ngModelChange)="patchReq({ formulaVersionId: $event })"
+          data-testid="rq-version"
+        >
+          @for (v of ctx.versions(); track v.id) {
+            <option [value]="v.id">{{ v.versionLabel }} · {{ v.totalPct.slice(0, -4) }} %</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="rq-t">Title</label
+        ><input
+          id="rq-t"
+          class="input"
+          name="t"
+          maxlength="80"
+          [ngModel]="req().title"
+          (ngModelChange)="patchReq({ title: $event })"
+          data-testid="rq-title"
+        />
+      </div>
+      <div class="field">
+        <label for="rq-m">Message</label
+        ><textarea
+          id="rq-m"
+          class="textarea"
+          rows="2"
+          name="m"
+          maxlength="1000"
+          [ngModel]="req().message"
+          (ngModelChange)="patchReq({ message: $event })"
+        ></textarea>
+      </div>
+      <div class="section-title">Reviewers</div>
+      @for (m of reviewerCandidates(); track m.userId) {
+        <div class="rv">
+          <span class="avatar-xs">{{ m.initials }}</span>
+          <span class="col grow" style="gap: 0"
+            ><b class="small">{{ m.name }}</b
+            ><span class="tiny muted">project role: {{ m.role }}</span></span
+          >
+          @if (m.role === 'reviewer') {
+            <select
+              class="select"
+              style="height: 28px; width: 140px; font-size: 12px"
+              [attr.aria-label]="'Permission for ' + m.name"
+              [ngModel]="req().reviewers[m.userId]"
+              (ngModelChange)="setReviewer(m.userId, $event)"
+              [name]="'p' + m.userId"
+              [attr.data-testid]="'rq-perm-' + m.initials"
+            >
+              <option value="">Not invited</option>
+              <option value="comment">Can comment</option>
+              <option value="approve">Can approve</option>
+            </select>
+          } @else {
+            <span class="tiny muted">{{ m.role === 'viewer' ? 'viewers cannot review' : 'owner' }}</span>
+          }
+        </div>
+      }
+      <div class="row" style="justify-content: flex-end; margin-top: 6px">
+        <button type="button" class="btn ghost" (click)="reqOpen.set(false)">Cancel</button>
+        <button
+          type="submit"
+          class="btn primary"
+          [disabled]="busy() || !req().title.trim() || !reqReviewers().length"
+          data-testid="rq-submit"
+        >
+          Send request
+        </button>
+      </div>
+    </form>
+  </div>
+}

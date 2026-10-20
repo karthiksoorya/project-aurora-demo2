@@ -215,14 +215,127 @@ export interface AuditEvent {
   occurredAt: string;
 }
 
+/* ---------------- Access ---------------- */
+
+export type ProjectRole = 'owner' | 'reviewer' | 'viewer';
+export interface Membership {
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  updatedAt: string;
+}
+
+/* ---------------- Validation ---------------- */
+
+export type CheckStatus = 'pass' | 'warning' | 'fail' | 'not_assessed';
+export interface ValidationFinding {
+  id: string;
+  ruleId: string;
+  scope: 'formula' | 'ingredient';
+  category: 'formula_check' | 'regulatory' | 'allergen' | 'data_completeness';
+  ingredientId?: string;
+  lineId?: string;
+  status: CheckStatus;
+  message: string;
+  evidence: { basis: string; inputs?: Record<string, unknown>; missingInputs?: string[]; source?: string };
+}
+export interface ValidationRun {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  snapshotHash: string;
+  market: string;
+  productCategory: string;
+  ruleSetIds: string[];
+  status: CheckStatus;
+  summary: Record<CheckStatus, number>;
+  coverage: {
+    ruleSetId: string;
+    title: string;
+    edition: string;
+    status: 'evaluated' | 'not_assessed';
+    reason?: string;
+  }[];
+  findings: ValidationFinding[];
+  evaluatedBy: string;
+  evaluatedAt: string;
+  engineVersion: string;
+}
+
+/* ---------------- Experiments ---------------- */
+
+export type ObservationKind = 'observation' | 'measurement' | 'hypothesis';
+export interface Observation {
+  id: string;
+  kind: ObservationKind;
+  text: string;
+  measurement?: { quantity: string; value: string; unit: string; method: string };
+  recordedBy: string;
+  recordedByName: string;
+  recordedAt: string;
+}
+export interface Experiment {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  title: string;
+  protocol: { objective: string; method: string; conditions: string };
+  status: 'planned' | 'in_progress' | 'completed';
+  observations: Observation[];
+  createdBy: string;
+  createdAt: string;
+}
+
+/* ---------------- Reviews ---------------- */
+
+export type ReviewStatus = 'submitted' | 'changes_requested' | 'approved' | 'rejected' | 'withdrawn';
+export interface ReviewComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  comment: string;
+  kind: 'feedback' | 'information' | 'suggestion';
+  createdAt: string;
+}
+export interface ReviewDecision {
+  id: string;
+  userId: string;
+  userName: string;
+  decision: 'approved' | 'changes_requested' | 'rejected';
+  reason: string;
+  decidedAt: string;
+}
+export interface ReviewRequest {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  snapshotHash: string;
+  title: string;
+  message: string;
+  status: ReviewStatus;
+  reviewers: { userId: string; permission: 'comment' | 'approve' }[];
+  comments: ReviewComment[];
+  decisions: ReviewDecision[];
+  requestedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ---------------- Persistence shape ---------------- */
 
 export interface DbState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   projects: Project[];
   briefs: Brief[];
   drafts: FormulaDraft[];
   versions: FormulaVersion[];
   audit: AuditEvent[];
   uploads: Upload[];
+  memberships: Membership[];
+  validations: ValidationRun[];
+  experiments: Experiment[];
+  reviews: ReviewRequest[];
 }

@@ -90,6 +90,7 @@ export interface ProjectDetail extends ProjectSummary {
   draftBasedOnVersionId: string | null;
   latestVersionId: string | null;
   briefRevision: number | null;
+  myRole: ProjectRole;
 }
 
 export interface Inspiration {
@@ -260,3 +261,123 @@ export interface ApiError {
 }
 
 export type WorkspaceKey = 'concept' | 'ingredients' | 'formula' | 'validation' | 'experiments' | 'review';
+
+/* ---------------- M2 ---------------- */
+export type ProjectRole = 'owner' | 'reviewer' | 'viewer';
+export interface DemoUser {
+  id: string;
+  name: string;
+  initials: string;
+  title: string;
+}
+export interface Member extends DemoUser {
+  userId: string;
+  role: ProjectRole;
+}
+export type CheckStatus = 'pass' | 'warning' | 'fail' | 'not_assessed';
+export interface RuleSet {
+  id: string;
+  title: string;
+  edition: string;
+  kind: 'formula' | 'regulatory' | 'allergen';
+  datasetConfigured: boolean;
+  description: string;
+  missingInputs: string[];
+}
+export interface ValidationOptions {
+  markets: string[];
+  categories: string[];
+  ruleSets: RuleSet[];
+  engineVersion: string;
+}
+export interface ValidationFinding {
+  id: string;
+  ruleId: string;
+  scope: 'formula' | 'ingredient';
+  category: 'formula_check' | 'regulatory' | 'allergen' | 'data_completeness';
+  ingredientId?: string;
+  lineId?: string;
+  status: CheckStatus;
+  message: string;
+  evidence: { basis: string; inputs?: Record<string, unknown>; missingInputs?: string[]; source?: string };
+}
+export interface ValidationRun {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  snapshotHash: string;
+  market: string;
+  productCategory: string;
+  ruleSetIds: string[];
+  status: CheckStatus;
+  summary: Record<CheckStatus, number>;
+  coverage: {
+    ruleSetId: string;
+    title: string;
+    edition: string;
+    status: 'evaluated' | 'not_assessed';
+    reason?: string;
+  }[];
+  findings: ValidationFinding[];
+  evaluatedBy: string;
+  evaluatedAt: string;
+  engineVersion: string;
+  stale: { isStale: boolean; reasons: string[] };
+}
+export type ObservationKind = 'observation' | 'measurement' | 'hypothesis';
+export interface Observation {
+  id: string;
+  kind: ObservationKind;
+  text: string;
+  measurement?: { quantity: string; value: string; unit: string; method: string };
+  recordedBy: string;
+  recordedByName: string;
+  recordedAt: string;
+}
+export interface Experiment {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  title: string;
+  protocol: { objective: string; method: string; conditions: string };
+  status: 'planned' | 'in_progress' | 'completed';
+  observations: Observation[];
+  createdBy: string;
+  createdAt: string;
+}
+export interface LineageNode {
+  id: string;
+  versionLabel: string;
+  parentVersionId: string | null;
+  savedAt: string;
+  totalPct: string;
+  completeness: string;
+  note: string;
+  experiments: number;
+  observations: number;
+  latestValidation: CheckStatus | null;
+  latestReview: ReviewStatus | null;
+}
+export interface Lineage {
+  draftBasedOnVersionId: string | null;
+  nodes: LineageNode[];
+}
+export type ReviewStatus = 'submitted' | 'changes_requested' | 'approved' | 'rejected' | 'withdrawn';
+export interface Review {
+  id: string;
+  projectId: string;
+  formulaVersionId: string;
+  versionLabel: string;
+  snapshotHash: string;
+  title: string;
+  message: string;
+  status: ReviewStatus;
+  reviewers: { userId: string; permission: 'comment' | 'approve' }[];
+  comments: { id: string; authorId: string; authorName: string; comment: string; kind: string; createdAt: string }[];
+  decisions: { id: string; userId: string; userName: string; decision: string; reason: string; decidedAt: string }[];
+  requestedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

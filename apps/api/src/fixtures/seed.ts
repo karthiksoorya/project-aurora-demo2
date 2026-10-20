@@ -1,6 +1,16 @@
 import { stableUuid } from '../common/ids';
-import { DEMO_USER } from '../common/request-context';
-import type { BriefContent, DbState } from '../domain/types';
+import { DEMO_USER, USERS } from '../common/request-context';
+import type { BriefContent, DbState, Membership } from '../domain/types';
+
+/** Creator becomes owner; the other simulated users get their default role. */
+export function defaultMemberships(projectId: string, ownerId: string, at: string): Membership[] {
+  return USERS.map((u) => ({
+    projectId,
+    userId: u.id,
+    role: u.id === ownerId ? 'owner' : u.defaultRole === 'owner' ? 'reviewer' : u.defaultRole,
+    updatedAt: at,
+  }));
+}
 import { ingredientIdBySlug } from './ingredients';
 
 /** Synthetic seed: the fictional "Coastal Air" project. No real/proprietary formula data. */
@@ -74,7 +84,7 @@ const SEED_DRAFT: [string, string][] = [
 
 export function buildSeed(): DbState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     projects: [
       {
         id: SEED_PROJECT_ID,
@@ -115,5 +125,9 @@ export function buildSeed(): DbState {
     versions: [],
     audit: [],
     uploads: [],
+    memberships: defaultMemberships(SEED_PROJECT_ID, DEMO_USER.id, SEED_TIME),
+    validations: [],
+    experiments: [],
+    reviews: [],
   };
 }

@@ -51,7 +51,7 @@ See `.env.example`. Variables are read from the environment (set them in the she
 
 ---
 
-## 2. What works in M1
+## 2. What works (M1 + M2)
 
 * **Shared shell** — sidebar with exactly six workspace routes, Coastal Air project selector (create new
   projects), global search (ingredients, concepts, versions), Manual / AI Assist switch, audit-trail bell,
@@ -70,8 +70,23 @@ See `.env.example`. Variables are read from the environment (set them in the she
   3D Ingredients · Molecular Inspector**), expanded 3D state (FS-06 "3D Exploration (AI Assisted)" in AI
   mode), immutable **Save Version** (SHA-256 hashed), version history, load-version-into-draft, version
   comparison computed from saved snapshots, JSON/CSV export of the draft.
-* **Validation / Experiment / Share & Review** — render inside the shared shell with real saved-version
-  context and an explicit M2 scope notice (no mock results).
+* **Validation Studio** (VS-M, VS-A, VS-E) — run a deterministic validation against an exact saved version,
+  market and product category; formula checks FC-001 total = 100 %, FC-002 no negatives, FC-003 no duplicates,
+  FC-004 catalog presence, FC-005 snapshot hash integrity, DC-001 data completeness. IFRA and EU-allergen rule
+  sets report **Not assessed** with the inputs they are missing. Results are immutable runs with evidence
+  (version hash, engine version, sources) and are flagged **stale** when newer versions exist or the draft /
+  catalog changed.
+* **Experiment Explorer** (EE-M1, EE-A, EE-X) — experiments attach to an exact saved version (objective,
+  method, conditions, status); typed notes: observation, measurement (quantity + value + unit + method
+  required), hypothesis. Branching view draws the real version lineage from saved parent links; **Create
+  Branch** loads a version into the draft so the next saved version records it as parent.
+* **Share & Review** (SR-M, SR-A, SR-X) — request a review of a version with per-reviewer permission
+  (comment / approve), comment thread on the frozen snapshot, decisions (approve / request changes /
+  reject) with reason, withdraw, project members & roles, filterable audit trail.
+* **Simulated users & roles** — header switcher: Senior Perfumer (owner), Product Development and
+  Regulatory Affairs (reviewers), Marketing (viewer). Owners edit; reviewers comment / decide only where
+  invited; viewers are read-only (banner + disabled controls, and the API returns 403). Nobody can approve
+  their own review.
 * **AI Assist** — switching mode only changes presentation. The AI partner panel is hideable and states
   honestly that AI is **unavailable**; the only call it makes is a local `GET /api/v1/ai/status`.
   Manual mode makes **zero** AI calls (verified by Playwright).
@@ -99,12 +114,13 @@ apps/api/src/
   fixtures/          demo ingredient catalog, RDKit structure fixtures, Coastal Air seed
   persistence/       repository interfaces + UnitOfWork; JSON adapter (atomic temp-file + fsync + rename, serialized
                      transactional writes, version-hash integrity check on load); fixture catalog repository
-  modules/           health, projects (brief, uploads, audit), ingredients, formulas (engine, service, controller), ai (503)
+  modules/           health, projects (brief, uploads, audit), ingredients, formulas (engine, service, controller), access (users,
+                     members, roles), validations (engine + rule sets), experiments (+ lineage), reviews, ai (503)
 apps/web/src/app/
   core/              api client, project-context (brief, draft save queue, versions), workspace-state (UI state), toasts
   shared/            app-shell, header, nav, AI partner panel, ingredient art/detail, formula table, evidence badge, scene art
   visuals/           three/ (SceneHost, materials, tool rail), ingredient-universe, formula-3d, ingredients-3d, molecular-inspector
-  workspaces/        concept, ingredients, formula, planned (M2 workspaces)
+  workspaces/        concept, ingredients, formula, validation, experiments, review
 e2e/                 Playwright specs, support (network guard, API process control), screenshots (generated)
 tools/               build_structures.py (RDKit), verify-screens.mjs (reference hash check), make_compare_sheets.py
 docs/                handoff package docs, SCREEN_INDEX, DEVIATIONS, milestone reports
@@ -114,18 +130,25 @@ API: `/api/v1` — `GET /health`, `GET|POST /projects`, `GET /projects/:id`, `GE
 `POST /projects/:id/uploads`, `GET /uploads/:id`, `GET /ingredients`, `GET /ingredients/:id`,
 `GET|PUT /projects/:id/formula-draft`, `POST /projects/:id/formula-draft/normalize`,
 `GET|POST /projects/:id/formula-versions`, `GET /formula-versions/:id`, `GET /formula-versions/compare`,
-`POST /formula-versions/:id/branch`, `GET /projects/:id/audit`, `GET /ai/status`, `* /ai/proposals` → 503.
-Stale revisions → **409**, invalid input → **400**, duplicate version label → **409**.
+`POST /formula-versions/:id/branch`, `GET /projects/:id/audit?action=&targetId=`, `GET /ai/status`, `* /ai/proposals` → 503.
+M2: `GET /users`, `GET /me`, `GET /projects/:id/members`, `PUT /projects/:id/members/:userId`,
+`GET /validation-options`, `POST /validations`, `GET /validations/:id`, `GET /projects/:id/validations`,
+`POST /experiments`, `GET /experiments/:id`, `POST /experiments/:id/observations`, `POST /experiments/:id/status`,
+`GET /projects/:id/experiments`, `GET /projects/:id/lineage`, `POST /reviews`, `GET /reviews/:id`,
+`POST /reviews/:id/comments`, `POST /reviews/:id/decisions`, `POST /reviews/:id/withdraw`, `GET /projects/:id/reviews`.
+Stale revisions → **409**, invalid input → **400**, duplicate version label → **409**, unknown user → **401**,
+role not allowed → **403**, removing the last owner → **422**.
 
-### Local demo identity policy (M1)
-There is **no authentication**. Every request is attributed to one simulated local user
-("Senior Perfumer", role owner). This is not production auth; real identity and roles are an open decision
-(spec §10.6) and arrive with M2's role simulation.
+### Local demo identity policy (M2)
+There is **no authentication**. The web app sends the selected simulated user in an `x-aurora-user` header
+(default: Senior Perfumer). The API resolves it to one of four fixed demo users and enforces per-project roles
+on every write. This demonstrates the permission model only — it is not security; real identity is a later
+decision (spec §10.6).
 
 ### Persistence
 `apps/api/data/aurora-db.json` (+ `uploads/`). Writes are serialized and atomic; a crash cannot leave a
-half-written file. Saved versions are append-only and re-hashed on every start (`/health` reports any
-mismatch). The JSON adapter is single-process only — PostgreSQL arrives in M3 behind the same interfaces.
+half-written file. Saved versions, validation runs and review decisions are append-only; versions are re-hashed on every start
+(`/health` reports any mismatch). A schema-v1 data file is upgraded to v2 on start (backup `aurora-db.json.v1.bak`). The JSON adapter is single-process only — PostgreSQL arrives in M3 behind the same interfaces.
 
 ## 5. Tooling decisions
 * **Storybook: not configured.** Components are workspace-specific and state-heavy; the Playwright visual

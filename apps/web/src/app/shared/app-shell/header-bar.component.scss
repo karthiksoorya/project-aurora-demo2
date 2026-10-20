@@ -125,6 +125,30 @@
   display: flex;
   align-items: center;
   gap: 9px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 10px;
+  &:hover {
+    background: #eef3ff;
+  }
+}
+.user-menu {
+  top: 50px;
+  right: 0;
+  width: 290px;
+}
+.avatar.sm {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+.avatar.r-reviewer {
+  background: linear-gradient(135deg, #8b5cf6, #5b32c9);
+}
+.avatar.r-viewer {
+  background: linear-gradient(135deg, #e0479e, #a8236d);
 }
 .avatar {
   width: 36px;

@@ -19,7 +19,7 @@ import { I } from '../icons';
 import { IngredientArtComponent } from '../ingredient-card/ingredient-art.component';
 import type { WorkspaceNav } from './nav';
 
-type Menu = 'project' | 'bell' | 'help' | 'search' | null;
+type Menu = 'project' | 'bell' | 'help' | 'search' | 'user' | null;
 
 @Component({
   selector: 'aur-header-bar',
@@ -184,12 +184,47 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | null;
         }
       </div>
 
-      <div class="user" title="Simulated local demo user — no authentication in M1">
-        <span class="avatar">SP</span>
-        <span class="col" style="gap: 0">
-          <b class="small">Senior Perfumer</b>
-          <span class="tiny muted">local demo user</span>
-        </span>
+      <div class="pos">
+        <button
+          class="user"
+          (click)="toggle('user')"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="open() === 'user'"
+          data-testid="user-switcher"
+          title="Simulated local user — no authentication in this POC"
+        >
+          <span class="avatar" [class]="'avatar r-' + ctx.myRole()">{{ me()?.initials ?? 'SP' }}</span>
+          <span class="col" style="gap: 0; text-align: left">
+            <b class="small">{{ me()?.name ?? 'Senior Perfumer' }}</b>
+            <span class="tiny muted" data-testid="my-role">{{ roleLabel(ctx.myRole()) }} · simulated</span>
+          </span>
+          <lucide-icon [img]="I.ChevronDown" [size]="16" />
+        </button>
+        @if (open() === 'user') {
+          <div class="menu user-menu" role="menu">
+            <div class="tiny muted" style="padding: 4px 10px 6px">Act as (simulated local users, no login)</div>
+            @for (u of ctx.session.users(); track u.id) {
+              <button
+                class="menu-item"
+                role="menuitem"
+                (click)="switchUser(u.id)"
+                [attr.data-testid]="'act-as-' + u.initials"
+              >
+                <span class="avatar sm">{{ u.initials }}</span>
+                <span class="col grow" style="gap: 0">
+                  <b class="small">{{ u.name }}</b>
+                  <span class="tiny muted">{{ u.title }}</span>
+                </span>
+                @if (u.id === ctx.session.userId()) {
+                  <lucide-icon [img]="I.Check" [size]="15" style="color: var(--primary)" />
+                }
+              </button>
+            }
+            <p class="tiny muted" style="padding: 6px 10px 2px; max-width: 260px">
+              Permissions come from each user's project role and are enforced by the API.
+            </p>
+          </div>
+        }
       </div>
     </header>
   `,
@@ -251,6 +286,21 @@ export class HeaderBarComponent {
     return [...ing, ...concepts, ...versions].slice(0, 10);
   });
 
+  readonly me = computed(() => this.ctx.session.current());
+  roleLabel(r: string) {
+    return { owner: 'Owner', reviewer: 'Reviewer', viewer: 'Viewer' }[r] ?? r;
+  }
+  async switchUser(id: string) {
+    this.open.set(null);
+    if (id === this.ctx.session.userId()) return;
+    try {
+      await this.ctx.switchUser(id);
+      this.ctx.reportInfo(`Now acting as ${this.me()?.name} (${this.roleLabel(this.ctx.myRole())})`);
+    } catch (e) {
+      this.ctx.reportError(e, 'Could not switch user');
+    }
+  }
+
   toggle(m: Menu) {
     this.open.update((o) => (o === m ? null : m));
   }
@@ -298,6 +348,22 @@ export class HeaderBarComponent {
         return 'Normalised draft to 100 %';
       case 'draft.branched_from_version':
         return `Loaded ${String(p['versionLabel'])} into the draft`;
+      case 'validation.run':
+        return `Ran validation on ${String(p['versionLabel'])} → ${String(p['status']).replace('_', ' ')}`;
+      case 'experiment.created':
+        return `Created experiment “${String(p['title'])}” on ${String(p['versionLabel'])}`;
+      case 'experiment.observation_added':
+        return `Recorded a ${String(p['kind'])} on ${String(p['versionLabel'])}`;
+      case 'review.requested':
+        return `Requested review of ${String(p['versionLabel'])}`;
+      case 'review.commented':
+        return `Commented on review of ${String(p['versionLabel'])}`;
+      case 'review.decision':
+        return `Review decision on ${String(p['versionLabel'])}: ${String(p['decision']).replace('_', ' ')}`;
+      case 'review.withdrawn':
+        return `Withdrew review of ${String(p['versionLabel'])}`;
+      case 'access.role_changed':
+        return `Changed ${String(p['user'])} role to ${String(p['to'])}`;
       case 'upload.added':
         return `Uploaded ${String(p['name'])}`;
       case 'project.created':

@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { LandingComponent } from './landing.component';
 import { AppShellComponent } from './shared/app-shell/app-shell.component';
-import { PLANNED } from './workspaces/planned/planned-workspace.component';
 
 /**
  * Exactly six workspace routes under /projects/:projectId (spec §2).
@@ -35,23 +34,19 @@ export const routes: Routes = [
       {
         path: 'validation',
         title: 'Validation Studio · Aurora',
-        data: PLANNED.validation,
         loadComponent: () =>
-          import('./workspaces/planned/planned-workspace.component').then((m) => m.PlannedWorkspaceComponent),
+          import('./workspaces/validation/validation-studio.component').then((m) => m.ValidationStudioComponent),
       },
       {
         path: 'experiments',
         title: 'Experiment Explorer · Aurora',
-        data: PLANNED.experiments,
         loadComponent: () =>
-          import('./workspaces/planned/planned-workspace.component').then((m) => m.PlannedWorkspaceComponent),
+          import('./workspaces/experiments/experiment-explorer.component').then((m) => m.ExperimentExplorerComponent),
       },
       {
         path: 'review',
         title: 'Share & Review · Aurora',
-        data: PLANNED.review,
-        loadComponent: () =>
-          import('./workspaces/planned/planned-workspace.component').then((m) => m.PlannedWorkspaceComponent),
+        loadComponent: () => import('./workspaces/review/share-review.component').then((m) => m.ShareReviewComponent),
       },
     ],
   },

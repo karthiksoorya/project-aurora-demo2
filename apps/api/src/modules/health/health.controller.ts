@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { accessSync, constants } from 'node:fs';
 import * as path from 'node:path';
-import { DEMO_USER } from '../../common/request-context';
+import { USERS } from '../../common/request-context';
 import { JsonUnitOfWork } from '../../persistence/json-store';
 import { CatalogRepository, UnitOfWork } from '../../persistence/repositories';
 
@@ -35,7 +35,7 @@ export class HealthController {
       },
       catalog: { version: this.catalog.version(), ingredients: this.catalog.all().length },
       ai: { enabled: false, reason: 'AI gateway not configured (M4 requires explicit approval)' },
-      identity: { mode: 'local-demo', user: DEMO_USER.name },
+      identity: { mode: 'local-demo-simulated-users', users: USERS.length },
       outboundNetwork: 'none',
     };
   }

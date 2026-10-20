@@ -2,6 +2,15 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom, type Observable } from 'rxjs';
 import type {
+  DemoUser,
+  Experiment,
+  Lineage,
+  Member,
+  ObservationKind,
+  ProjectRole,
+  Review,
+  ValidationOptions,
+  ValidationRun,
   ApiError,
   AuditEvent,
   Brief,
@@ -96,6 +105,77 @@ export class ApiService {
   audit(projectId: string, limit = 30) {
     return this.call(this.http.get<AuditEvent[]>(`${BASE}/projects/${projectId}/audit`, { params: { limit } }));
   }
+  // ---------------- M2: access, validation, experiments, reviews
+  users() {
+    return this.call(this.http.get<DemoUser[]>(`${BASE}/users`));
+  }
+  members(projectId: string) {
+    return this.call(this.http.get<Member[]>(`${BASE}/projects/${projectId}/members`));
+  }
+  setRole(projectId: string, userId: string, role: ProjectRole) {
+    return this.call(this.http.put<Member>(`${BASE}/projects/${projectId}/members/${userId}`, { role }));
+  }
+  validationOptions() {
+    return this.call(this.http.get<ValidationOptions>(`${BASE}/validation-options`));
+  }
+  runValidation(body: { formulaVersionId: string; market: string; category: string; ruleSetIds: string[] }) {
+    return this.call(this.http.post<ValidationRun>(`${BASE}/validations`, body));
+  }
+  validations(projectId: string) {
+    return this.call(this.http.get<Omit<ValidationRun, 'findings'>[]>(`${BASE}/projects/${projectId}/validations`));
+  }
+  validation(runId: string) {
+    return this.call(this.http.get<ValidationRun>(`${BASE}/validations/${runId}`));
+  }
+  experiments(projectId: string) {
+    return this.call(this.http.get<Experiment[]>(`${BASE}/projects/${projectId}/experiments`));
+  }
+  createExperiment(body: { formulaVersionId: string; title: string; protocol: Experiment['protocol'] }) {
+    return this.call(this.http.post<Experiment>(`${BASE}/experiments`, body));
+  }
+  addObservation(
+    id: string,
+    body: {
+      kind: ObservationKind;
+      text: string;
+      measurement?: { quantity: string; value: string; unit: string; method: string };
+    },
+  ) {
+    return this.call(this.http.post<Experiment>(`${BASE}/experiments/${id}/observations`, body));
+  }
+  setExperimentStatus(id: string, status: Experiment['status']) {
+    return this.call(this.http.post<Experiment>(`${BASE}/experiments/${id}/status`, { status }));
+  }
+  lineage(projectId: string) {
+    return this.call(this.http.get<Lineage>(`${BASE}/projects/${projectId}/lineage`));
+  }
+  reviews(projectId: string) {
+    return this.call(this.http.get<Review[]>(`${BASE}/projects/${projectId}/reviews`));
+  }
+  createReview(body: {
+    formulaVersionId: string;
+    title: string;
+    message: string;
+    reviewers: { userId: string; permission: 'comment' | 'approve' }[];
+  }) {
+    return this.call(this.http.post<Review>(`${BASE}/reviews`, body));
+  }
+  comment(id: string, comment: string, kind: string) {
+    return this.call(this.http.post<Review>(`${BASE}/reviews/${id}/comments`, { comment, kind }));
+  }
+  decide(id: string, decision: 'approved' | 'changes_requested' | 'rejected', reason: string) {
+    return this.call(this.http.post<Review>(`${BASE}/reviews/${id}/decisions`, { decision, reason }));
+  }
+  withdrawReview(id: string) {
+    return this.call(this.http.post<Review>(`${BASE}/reviews/${id}/withdraw`, {}));
+  }
+  auditFiltered(projectId: string, params: { limit?: number; action?: string; targetId?: string }) {
+    const p: Record<string, string> = { limit: String(params.limit ?? 100) };
+    if (params.action) p['action'] = params.action;
+    if (params.targetId) p['targetId'] = params.targetId;
+    return this.call(this.http.get<AuditEvent[]>(`${BASE}/projects/${projectId}/audit`, { params: p }));
+  }
+
   /** Local status probe only — called exclusively when the user is in AI Assist mode. */
   aiStatus() {
     return this.call(this.http.get<{ enabled: boolean; message: string; requires: string }>(`${BASE}/ai/status`));

@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { ApiService, isApiError } from '../api/api.service';
+import { SessionUserService } from '../auth/session-user.service';
 import { ToastService } from '../errors/toast.service';
 import type {
   ApiError,
@@ -32,6 +33,22 @@ const sameItems = (a: DraftItem[], b: DraftItem[]) => JSON.stringify(a) === JSON
 export class ProjectContextService {
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
+  readonly session = inject(SessionUserService);
+
+  /** Role of the current simulated user in this project (API-enforced; UI only mirrors it). */
+  readonly myRole = computed(() => this.project()?.myRole ?? 'viewer');
+  readonly canEdit = computed(() => this.myRole() === 'owner');
+  /** Bumped after user switches and cross-workspace mutations so workspaces re-fetch their lists. */
+  readonly tick = signal(0);
+  bump() {
+    this.tick.update((t) => t + 1);
+  }
+  /** Client-side mirror of the API rule (owner-only edits); the API rejects anyway. */
+  private guard(action: string) {
+    if (this.canEdit()) return true;
+    this.toast.warn(`Read-only: the ${this.myRole()} role cannot ${action}.`);
+    return false;
+  }
 
   readonly projects = signal<ProjectSummary[]>([]);
   readonly projectId = signal<string | null>(null);
@@ -73,7 +90,8 @@ export class ProjectContextService {
   private saving: Promise<void> | null = null;
 
   async init() {
-    const [projects, cat] = await Promise.all([this.api.projects(), this.api.catalog()]);
+    const [projects, cat, users] = await Promise.all([this.api.projects(), this.api.catalog(), this.api.users()]);
+    this.session.users.set(users);
     this.projects.set(projects);
     this.catalog.set(cat.items);
     this.catalogVersion.set(cat.catalogVersion);
@@ -112,6 +130,19 @@ export class ProjectContextService {
     }
   }
 
+  /** Switch simulated user: same data, different permissions. */
+  async switchUser(userId: string) {
+    await this.flushDraft();
+    this.session.userId.set(userId);
+    const id = this.projectId();
+    await this.refreshProjects();
+    if (id) {
+      this.project.set(null);
+      await this.open(id);
+    }
+    this.bump();
+  }
+
   async refreshProjects() {
     this.projects.set(await this.api.projects());
   }
@@ -140,6 +171,7 @@ export class ProjectContextService {
 
   // ------------------------------------------------------------------ brief
   patchBrief(p: Partial<BriefContent>) {
+    if (!this.guard('edit the brief')) return;
     this.briefEdit.update((b) => (b ? { ...b, ...p } : b));
   }
   discardBrief() {
@@ -147,6 +179,7 @@ export class ProjectContextService {
     if (b) this.briefEdit.set(structuredClone(b.content));
   }
   async saveBrief(): Promise<boolean> {
+    if (!this.guard('save the brief')) return false;
     const id = this.projectId();
     const b = this.brief();
     const content = this.briefEdit();
@@ -186,6 +219,7 @@ export class ProjectContextService {
   }
 
   addIngredient(ingredientId: string, massPct = '0.000000') {
+    if (!this.guard('add ingredients')) return '';
     const items = this.workingItems();
     const line: DraftItem = { lineId: uuid(), ingredientId, massPct, position: items.length };
     this.workingItems.set([...items, line]);
@@ -193,6 +227,7 @@ export class ProjectContextService {
     return line.lineId;
   }
   removeLine(lineId: string) {
+    if (!this.guard('edit the formula')) return;
     this.workingItems.set(
       this.workingItems()
         .filter((i) => i.lineId !== lineId)
@@ -205,6 +240,7 @@ export class ProjectContextService {
     this.scheduleSave(0);
   }
   moveLine(lineId: string, dir: -1 | 1) {
+    if (!this.guard('edit the formula')) return;
     const items = [...this.workingItems()];
     const i = items.findIndex((x) => x.lineId === lineId);
     const j = i + dir;
@@ -215,6 +251,7 @@ export class ProjectContextService {
   }
   /** Quantity text from an input. Valid decimals are queued for save; invalid text is held and flagged. */
   setQuantity(lineId: string, raw: string) {
+    if (!this.guard('edit quantities')) return false;
     let v = raw.trim();
     if (/^\d{1,3}\.$/.test(v)) v = v.slice(0, -1); // "12." while typing == 12
     if (!PCT_INPUT_RE.test(v) || Number(v) > 100) {
@@ -297,6 +334,7 @@ export class ProjectContextService {
   }
 
   async normalize() {
+    if (!this.guard('normalise the formula')) return;
     await this.flushDraft();
     const d = this.draft();
     const pid = this.projectId();
@@ -328,6 +366,7 @@ export class ProjectContextService {
   }
 
   async loadVersionIntoDraft(versionId: string) {
+    if (!this.guard('load versions into the draft')) return;
     await this.flushDraft();
     const d = this.draft();
     if (!d) return;
@@ -345,6 +384,11 @@ export class ProjectContextService {
     let n = this.versions().length + 1;
     while (labels.has(`v${n}`)) n++;
     return `V${n}`;
+  }
+
+  async refreshVersions() {
+    const id = this.projectId();
+    if (id) this.versions.set(await this.api.versions(id));
   }
 
   private async refreshProjectHeader() {
