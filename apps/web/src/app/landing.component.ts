@@ -6,9 +6,19 @@ import { ProjectContextService } from './core/project-context/project-context.se
 @Component({
   selector: 'aur-landing',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: `:host { display: grid; place-items: center; height: 100vh; color: var(--muted); }`,
+  styles: `
+    :host {
+      display: grid;
+      place-items: center;
+      height: 100vh;
+      color: var(--muted);
+    }
+  `,
   template: `@if (error()) {
-      <div class="card card-pad" role="alert"><b>Local API not reachable.</b><p class="small muted">{{ error() }}</p></div>
+      <div class="card card-pad" role="alert">
+        <b>Local API not reachable.</b>
+        <p class="small muted">{{ error() }}</p>
+      </div>
     } @else {
       <span>Opening Aurora…</span>
     }`,

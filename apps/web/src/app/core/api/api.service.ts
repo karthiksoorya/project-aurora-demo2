@@ -86,12 +86,12 @@ export class ApiService {
     return this.call(this.http.post<FormulaVersion>(`${BASE}/projects/${projectId}/formula-versions`, body));
   }
   compare(leftId: string, rightId: string) {
-    return this.call(
-      this.http.get<CompareResult>(`${BASE}/formula-versions/compare`, { params: { leftId, rightId } }),
-    );
+    return this.call(this.http.get<CompareResult>(`${BASE}/formula-versions/compare`, { params: { leftId, rightId } }));
   }
   branch(versionId: string, expectedDraftRevision: number) {
-    return this.call(this.http.post<DraftView>(`${BASE}/formula-versions/${versionId}/branch`, { expectedDraftRevision }));
+    return this.call(
+      this.http.post<DraftView>(`${BASE}/formula-versions/${versionId}/branch`, { expectedDraftRevision }),
+    );
   }
   audit(projectId: string, limit = 30) {
     return this.call(this.http.get<AuditEvent[]>(`${BASE}/projects/${projectId}/audit`, { params: { limit } }));
@@ -106,7 +106,12 @@ export function toApiError(e: unknown): ApiError {
   if (e instanceof HttpErrorResponse) {
     const b = e.error as Partial<ApiError> | null;
     if (b && typeof b === 'object' && 'code' in b)
-      return { code: b.code ?? 'ERROR', message: b.message ?? e.message, details: b.details, requestId: b.requestId ?? '' };
+      return {
+        code: b.code ?? 'ERROR',
+        message: b.message ?? e.message,
+        details: b.details,
+        requestId: b.requestId ?? '',
+      };
     return {
       code: e.status === 0 ? 'API_UNREACHABLE' : `HTTP_${e.status}`,
       message: e.status === 0 ? 'Local API is not reachable — is `npm run dev` running?' : e.message,
@@ -117,5 +122,4 @@ export function toApiError(e: unknown): ApiError {
   return { code: 'ERROR', message: String(e), details: null, requestId: '' };
 }
 
-export const isApiError = (e: unknown): e is ApiError =>
-  !!e && typeof e === 'object' && 'code' in e && 'message' in e;
+export const isApiError = (e: unknown): e is ApiError => !!e && typeof e === 'object' && 'code' in e && 'message' in e;

@@ -5,7 +5,9 @@ import type { VerificationStatus } from '../../core/models';
 @Component({
   selector: 'aur-evidence',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span class="badge" [class]="'badge ' + cls()" [attr.title]="title()" data-testid="evidence">{{ text() }}</span>`,
+  template: `<span class="badge" [class]="'badge ' + cls()" [attr.title]="title()" data-testid="evidence">{{
+    text()
+  }}</span>`,
 })
 export class SourceEvidenceComponent {
   readonly status = input.required<VerificationStatus | 'illustrative' | 'not-assessed' | 'deterministic'>();

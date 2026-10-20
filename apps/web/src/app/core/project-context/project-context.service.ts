@@ -60,7 +60,7 @@ export class ProjectContextService {
   /** Items as currently shown/edited (may be ahead of the server while a save is in flight). */
   readonly workingItems = signal<DraftItem[]>([]);
   /** Raw text of quantity inputs that are not (yet) valid decimals, keyed by lineId. */
-  readonly invalidInputs = signal<Record<string, string>>({});
+  readonly invalidInputs = signal<Partial<Record<string, string>>>({});
   readonly draftSaving = signal(false);
   readonly computedStale = computed(() => {
     const d = this.draft();
@@ -81,8 +81,15 @@ export class ProjectContextService {
     return projects;
   }
 
+  private opening: { id: string; p: Promise<void> } | null = null;
   async open(projectId: string) {
     if (this.projectId() === projectId && this.project()) return;
+    if (this.opening?.id === projectId) return this.opening.p;
+    const p = this.doOpen(projectId).finally(() => (this.opening = null));
+    this.opening = { id: projectId, p };
+    return p;
+  }
+  private async doOpen(projectId: string) {
     await this.flushDraft();
     this.projectId.set(projectId);
     this.loadError.set(null);
@@ -155,7 +162,8 @@ export class ProjectContextService {
       return true;
     } catch (e) {
       this.reportError(e, 'Could not save brief');
-      if (isApiError(e) && e.code === 'STALE_REVISION') this.toast.warn('Brief changed elsewhere — your edits are kept; reload to compare.');
+      if (isApiError(e) && e.code === 'STALE_REVISION')
+        this.toast.warn('Brief changed elsewhere — your edits are kept; reload to compare.');
       return false;
     } finally {
       this.briefSaving.set(false);
@@ -207,7 +215,8 @@ export class ProjectContextService {
   }
   /** Quantity text from an input. Valid decimals are queued for save; invalid text is held and flagged. */
   setQuantity(lineId: string, raw: string) {
-    const v = raw.trim();
+    let v = raw.trim();
+    if (/^\d{1,3}\.$/.test(v)) v = v.slice(0, -1); // "12." while typing == 12
     if (!PCT_INPUT_RE.test(v) || Number(v) > 100) {
       this.invalidInputs.update((m) => ({ ...m, [lineId]: raw }));
       return false;
@@ -242,6 +251,8 @@ export class ProjectContextService {
   private async pump(): Promise<void> {
     if (this.saving) return this.saving;
     this.saving = (async () => {
+      // yield first so `this.saving` is assigned before the finally-block can reset it
+      await Promise.resolve();
       this.draftSaving.set(true);
       try {
         for (;;) {
@@ -304,7 +315,11 @@ export class ProjectContextService {
     const d = this.draft();
     const pid = this.projectId();
     if (!d || !pid) throw new Error('No draft');
-    const v = await this.api.saveVersion(pid, { expectedDraftRevision: d.revision, versionLabel, note: note || undefined });
+    const v = await this.api.saveVersion(pid, {
+      expectedDraftRevision: d.revision,
+      versionLabel,
+      note: note || undefined,
+    });
     this.draft.set({ ...d, basedOnVersionId: v.id });
     this.versions.set(await this.api.versions(pid));
     void this.refreshAudit();
@@ -337,6 +352,10 @@ export class ProjectContextService {
     if (!id) return;
     this.project.set(await this.api.project(id));
     void this.refreshProjects();
+  }
+
+  reportInfo(text: string) {
+    this.toast.info(text);
   }
 
   reportError(e: unknown, prefix: string) {

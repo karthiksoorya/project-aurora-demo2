@@ -17,7 +17,8 @@ export const routes: Routes = [
       {
         path: 'concept',
         title: 'Concept Studio · Aurora',
-        loadComponent: () => import('./workspaces/concept/concept-studio.component').then((m) => m.ConceptStudioComponent),
+        loadComponent: () =>
+          import('./workspaces/concept/concept-studio.component').then((m) => m.ConceptStudioComponent),
       },
       {
         path: 'ingredients',
@@ -28,7 +29,8 @@ export const routes: Routes = [
       {
         path: 'formula',
         title: 'Formula Studio · Aurora',
-        loadComponent: () => import('./workspaces/formula/formula-studio.component').then((m) => m.FormulaStudioComponent),
+        loadComponent: () =>
+          import('./workspaces/formula/formula-studio.component').then((m) => m.FormulaStudioComponent),
       },
       {
         path: 'validation',

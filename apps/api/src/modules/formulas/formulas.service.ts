@@ -279,9 +279,21 @@ export class FormulasService {
       totalPct: v.snapshot.totalPct,
       completeness: v.snapshot.completeness,
     });
+    const pyr = (m: ReturnType<typeof agg>) => {
+      const t: Record<string, bigint> = { top: 0n, heart: 0n, base: 0n };
+      let total = 0n;
+      for (const e of m.values()) {
+        t[e.role] = (t[e.role] ?? 0n) + e.sum;
+        total += e.sum;
+      }
+      return Object.fromEntries(
+        Object.entries(t).map(([k, v]) => [k, { massPct: formatPct(v), sharePct: shareOf(v, total) }]),
+      );
+    };
     return {
       left: head(l),
       right: head(r),
+      pyramid: { left: pyr(L), right: pyr(R) },
       basis: 'Computed from saved immutable snapshots only (draft is never used).',
       rows,
       accords: families.map((family) => ({

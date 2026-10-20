@@ -1,0 +1,382 @@
+<div class="page-head">
+  <span class="ws-icon"><lucide-icon [img]="I.Leaf" [size]="30" style="color: #22a35c" /></span>
+  <h1 data-testid="workspace-title">Ingredient Explorer</h1>
+  <span class="sub">Discover, analyze and compare fragrance ingredients</span>
+  <span class="grow"></span>
+  <span class="tiny muted">{{ ctx.catalog().length }} demo ingredients · {{ ctx.catalogVersion() }}</span>
+  <button class="btn" (click)="openCompare()" [disabled]="s().compareIds.length < 2" data-testid="open-compare">
+    <lucide-icon [img]="I.GitCompareArrows" [size]="16" /> Compare ({{ s().compareIds.length }})
+  </button>
+  <button class="btn" (click)="goFormula()">
+    <lucide-icon [img]="I.FlaskConical" [size]="16" /> Formula ({{ ctx.workingItems().length }})
+  </button>
+  @if (ui.mode() === 'ai' && !ui.aiPanelVisible('ingredients')) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('ingredients', true)">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+<div class="tabs ws-tabs" role="tablist">
+  <button
+    class="tab"
+    role="tab"
+    [class.on]="s().tab === 'universe'"
+    [attr.aria-selected]="s().tab === 'universe'"
+    (click)="patch({ tab: 'universe' })"
+    data-testid="tab-universe"
+  >
+    <lucide-icon [img]="I.Network" [size]="16" /> Ingredient Universe
+  </button>
+  <button
+    class="tab"
+    role="tab"
+    [class.on]="s().tab === 'list'"
+    [attr.aria-selected]="s().tab === 'list'"
+    (click)="patch({ tab: 'list' })"
+    data-testid="tab-list"
+  >
+    <lucide-icon [img]="I.List" [size]="16" /> Ingredient List
+  </button>
+  <button class="tab" role="tab" aria-selected="false" (click)="openCompare()" [disabled]="s().compareIds.length < 2">
+    <lucide-icon [img]="I.GitCompareArrows" [size]="16" /> Compare
+  </button>
+</div>
+
+<div class="layout" [class.expanded]="s().expanded" [class.with-ai]="ui.aiPanelVisible('ingredients')">
+  @if (!s().expanded) {
+    <aside class="card card-pad left" aria-label="Search and filters">
+      <div class="search">
+        <span class="search-icon"><lucide-icon [img]="I.Search" [size]="16" /></span>
+        <input
+          class="input"
+          type="search"
+          placeholder="Search ingredients (e.g. Bergamot, Linalool…)"
+          aria-label="Search ingredients"
+          [ngModel]="s().q"
+          (ngModelChange)="patch({ q: $event })"
+          data-testid="ingredient-search"
+        />
+      </div>
+      <div class="section-title" style="margin: 14px 0 8px">By Category</div>
+      <div class="cats" role="group" aria-label="Filter by family">
+        @for (f of families(); track f.key) {
+          <button
+            class="cat"
+            [class.on]="s().families.includes(f.key)"
+            [attr.aria-pressed]="s().families.includes(f.key)"
+            (click)="toggleFamily(f.key)"
+            [attr.data-testid]="'family-' + f.key"
+          >
+            <span class="cat-art" [style.background]="'linear-gradient(135deg,' + f.tint + ',' + f.color + ')'"></span>
+            <span class="small"
+              ><b>{{ f.label }}</b></span
+            >
+            <span class="tiny muted">{{ f.count }}</span>
+          </button>
+        }
+      </div>
+      <div class="row" style="margin: 14px 0 6px">
+        <span class="section-title grow">Filters</span>
+        @if (filtersActive()) {
+          <button class="btn sm ghost" (click)="clearFilters()" data-testid="clear-filters">Clear All</button>
+        }
+      </div>
+      <div class="field">
+        <label for="kind">Ingredient type</label>
+        <select
+          id="kind"
+          class="select"
+          [ngModel]="s().kind"
+          (ngModelChange)="patch({ kind: $event })"
+          data-testid="filter-kind"
+        >
+          <option value="">All types</option>
+          <option value="natural_mixture">Natural mixture</option>
+          <option value="single_compound">Single compound</option>
+        </select>
+      </div>
+      <div class="field" style="margin-top: 8px">
+        <label for="role">Role tag</label>
+        <select id="role" class="select" [ngModel]="s().role" (ngModelChange)="patch({ role: $event })">
+          <option value="">All roles</option>
+          @for (r of roles; track r.key) {
+            <option [value]="r.key">{{ r.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="na-filters">
+        @for (n of ['Sustainability', 'Regulatory Status', 'Performance', 'Supplier']; track n) {
+          <div class="row na-f">
+            <span class="small grow">{{ n }}</span
+            ><span class="tiny muted">no data source</span>
+          </div>
+        }
+      </div>
+    </aside>
+  }
+
+  <section class="center" aria-label="Ingredient results">
+    <div class="card stage-card">
+      <div class="legend">
+        @for (f of families(); track f.key) {
+          <span aria-hidden="true"><i class="dot" [style.background]="f.color"></i>{{ f.label }}</span>
+        }
+        <span class="grow"></span>
+        <span class="tiny muted" data-testid="result-count"
+          >{{ filtered().length }} of {{ ctx.catalog().length }} shown · <span style="color: #1f66ff">bright</span> = in
+          formula</span
+        >
+      </div>
+      @if (s().tab === 'universe') {
+        <div class="universe-wrap">
+          <aur-ingredient-universe
+            [ingredients]="ctx.catalog()"
+            [visibleIds]="visibleIds()"
+            [selectedId]="ui.selectedIngredientId()"
+            [inFormulaIds]="inFormulaIds()"
+            [key]="s().expanded ? 'universe-expanded' : 'universe'"
+            (selectIngredient)="select($event)"
+            (selectFamily)="toggleFamily($event)"
+          />
+          <button
+            class="icon-btn bordered expand"
+            [attr.aria-label]="s().expanded ? 'Exit expanded view' : 'Expand universe'"
+            (click)="patch({ expanded: !s().expanded })"
+            data-testid="universe-expand"
+          >
+            <lucide-icon [img]="s().expanded ? I.Minimize2 : I.Maximize2" [size]="16" />
+          </button>
+          <!-- accessible 2D alternative to the 3D canvas -->
+          <ul class="sr-only" aria-label="Ingredients shown in the universe">
+            @for (i of filtered(); track i.id) {
+              <li>
+                <button (click)="select(i.id)">{{ i.name }}, {{ fam(i.family).label }}</button>
+              </li>
+            }
+          </ul>
+        </div>
+      } @else {
+        <div class="list-wrap" data-testid="ingredient-list">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th>Type</th>
+                <th>Family</th>
+                <th>Role tag</th>
+                <th>Structure</th>
+                <th>IFRA</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (i of filtered(); track i.id) {
+                <tr
+                  [class.sel]="i.id === ui.selectedIngredientId()"
+                  (click)="select(i.id)"
+                  [attr.data-testid]="'row-' + i.slug"
+                  style="cursor: pointer"
+                >
+                  <td>
+                    <div class="row">
+                      <aur-ingredient-art [motif]="i.art.motif" [hue]="i.art.hue" [size]="32" /><b class="small">{{
+                        i.name
+                      }}</b>
+                    </div>
+                  </td>
+                  <td class="small">{{ kindLabel(i.kind) }}</td>
+                  <td>
+                    <span class="chip" [style.background]="fam(i.family).tint" [style.color]="fam(i.family).ink">{{
+                      fam(i.family).label
+                    }}</span>
+                  </td>
+                  <td class="small">{{ role(i.role).label }}</td>
+                  <td class="small muted">
+                    {{
+                      i.kind === 'natural_mixture'
+                        ? 'Mixture (constituents)'
+                        : i.hasStructure
+                          ? 'Curated 3D'
+                          : 'Not curated'
+                    }}
+                  </td>
+                  <td><aur-evidence status="not-assessed" /></td>
+                  <td>
+                    <button
+                      class="icon-btn bordered"
+                      [attr.aria-label]="'Add ' + i.name + ' to formula'"
+                      (click)="$event.stopPropagation(); addToFormula(i.id)"
+                    >
+                      <lucide-icon [img]="I.Plus" [size]="15" />
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="muted small">No ingredients match the filters.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+    @if (!s().expanded) {
+      <div class="card card-pad similar">
+        <div class="card-head" style="margin-bottom: 8px">
+          <h3 class="grow">Same family {{ selected() ? '· ' + fam(selected()!.family).label : '' }}</h3>
+          <aur-evidence status="illustrative" source="Grouped by curator family tag only — not a similarity score" />
+        </div>
+        <div class="sim-row">
+          @for (i of sameFamily(); track i.id) {
+            <button class="sim" (click)="select(i.id)" [attr.aria-label]="'Select ' + i.name">
+              <aur-ingredient-art [motif]="i.art.motif" [hue]="i.art.hue" [size]="44" />
+              <span class="col" style="gap: 2px; align-items: flex-start">
+                <b class="small">{{ i.name }}</b>
+                <span class="tiny muted">{{ kindLabel(i.kind) }}</span>
+                <span class="row" style="gap: 4px">
+                  @for (d of i.descriptors.slice(0, 2); track d) {
+                    <span class="chip" style="height: 19px; font-size: 10.5px">{{ d }}</span>
+                  }
+                </span>
+              </span>
+            </button>
+          } @empty {
+            <p class="small muted">
+              {{
+                selected()
+                  ? 'No other ingredient in this family in the demo catalog.'
+                  : 'Select an ingredient to see others from the same family.'
+              }}
+            </p>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <aside class="card card-pad details" aria-label="Ingredient details" data-testid="ingredient-detail">
+    <aur-ingredient-detail
+      [ingredientId]="ui.selectedIngredientId()"
+      [compared]="s().compareIds.includes(ui.selectedIngredientId() ?? '')"
+      [inFormulaPct]="inFormula().get(ui.selectedIngredientId() ?? '') ?? null"
+      [initialTab]="s().detailTab"
+      (tabChange)="patch({ detailTab: $event })"
+      (addToFormula)="addToFormula($event)"
+      (toggleCompare)="toggleCompare($event)"
+      (inspect)="inspect($event)"
+    />
+  </aside>
+
+  @if (ui.aiPanelVisible('ingredients')) {
+    <aur-ai-partner-panel workspace="ingredients" />
+  }
+</div>
+
+@if (compareOpen()) {
+  <div
+    class="overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="cmp-h"
+    (click)="compareOpen.set(false)"
+    (keydown.escape)="compareOpen.set(false)"
+    data-testid="compare-overlay"
+  >
+    <div class="dialog cmp" tabindex="-1" (click)="$event.stopPropagation()" (keydown.escape)="compareOpen.set(false)">
+      <div class="row" style="margin-bottom: 4px">
+        <div class="col grow" style="gap: 2px">
+          <h2 id="cmp-h">Compare Ingredients</h2>
+          <span class="small muted">Side by side from the demo catalog. Missing data stays “Not assessed”.</span>
+        </div>
+        <button class="icon-btn" aria-label="Close compare" (click)="compareOpen.set(false)">
+          <lucide-icon [img]="I.X" [size]="18" />
+        </button>
+      </div>
+      <div
+        class="cmp-grid"
+        [style.grid-template-columns]="'150px repeat(' + compareDetails().length + ', minmax(0, 1fr))'"
+      >
+        <div></div>
+        @for (d of compareDetails(); track d.id) {
+          <div class="cmp-head">
+            <aur-ingredient-art [motif]="d.art.motif" [hue]="d.art.hue" [size]="110" />
+            <b>{{ d.name }}</b>
+            <span class="tiny muted">{{ d.systematicName }}</span>
+            <button class="btn sm ghost" (click)="toggleCompare(d.id); openCompare()">Remove</button>
+          </div>
+        }
+        @for (
+          row of [
+            'Type',
+            'Family',
+            'Role tag',
+            'Descriptors',
+            'CAS',
+            'Formula',
+            'IFRA status',
+            'Sustainability',
+            'Key compounds',
+          ];
+          track row
+        ) {
+          <div class="cmp-label small muted">{{ row }}</div>
+          @for (d of compareDetails(); track d.id) {
+            <div class="cmp-cell small">
+              @switch (row) {
+                @case ('Type') {
+                  {{ kindLabel(d.kind) }}
+                }
+                @case ('Family') {
+                  <span class="chip" [style.background]="fam(d.family).tint" [style.color]="fam(d.family).ink">{{
+                    fam(d.family).label
+                  }}</span>
+                }
+                @case ('Role tag') {
+                  {{ role(d.role).label }}
+                }
+                @case ('Descriptors') {
+                  {{ d.descriptors.join(', ') }}
+                }
+                @case ('CAS') {
+                  {{ prop(d, 'cas')?.value ?? '—' }} <aur-evidence [status]="prop(d, 'cas')?.status ?? 'missing'" />
+                }
+                @case ('Formula') {
+                  @if (prop(d, 'formula')?.value; as v) {
+                    {{ v }} <aur-evidence status="computed" />
+                  } @else {
+                    <span class="na-cell">{{ d.kind === 'natural_mixture' ? 'Mixture — n/a' : 'Not curated' }}</span>
+                  }
+                }
+                @case ('IFRA status') {
+                  <aur-evidence status="not-assessed" />
+                }
+                @case ('Sustainability') {
+                  <aur-evidence status="not-assessed" />
+                }
+                @case ('Key compounds') {
+                  {{
+                    d.kind === 'natural_mixture'
+                      ? d.constituents
+                          .slice(0, 3)
+                          .map((c) => c.name)
+                          .join(', ')
+                      : d.name
+                  }}
+                }
+              }
+            </div>
+          }
+        }
+      </div>
+      <div class="row" style="justify-content: flex-end; margin-top: 14px">
+        <button class="btn ghost" (click)="patch({ compareIds: [] }); compareOpen.set(false)">Clear all</button>
+        <button class="btn primary" (click)="addComparedToFormula()" data-testid="compare-add-all">
+          <lucide-icon [img]="I.Plus" [size]="15" /> Add selected to formula
+        </button>
+      </div>
+    </div>
+  </div>
+}

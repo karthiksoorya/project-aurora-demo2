@@ -1,0 +1,426 @@
+<div class="page-head">
+  <span class="ws-icon"><lucide-icon [img]="I.Lightbulb" [size]="30" style="color: #f2b705" /></span>
+  <h1 data-testid="workspace-title">Concept Studio</h1>
+  <span class="sub"
+    >Create creative brief, explore inspiration, build concepts ({{
+      ui.mode() === 'ai' ? 'AI Assist' : 'Manual Mode'
+    }})</span
+  >
+  <span class="grow"></span>
+  <ol class="stepper" aria-label="Concept steps (non-linear)">
+    @for (
+      s of [
+        ['brief', 'Brief'],
+        ['explore', 'Explore'],
+        ['concepts', 'Build Concepts'],
+        ['refine', 'Refine'],
+      ];
+      track s[0];
+      let i = $index
+    ) {
+      <li>
+        <button [class.on]="i === 0" (click)="scrollTo('cs-' + s[0])">
+          <span class="n">{{ i + 1 }}</span
+          >{{ s[1] }}
+        </button>
+      </li>
+    }
+  </ol>
+  <div class="save-state" data-testid="brief-state">
+    @if (ctx.briefSaving()) {
+      <span class="muted small">Saving…</span>
+    } @else if (ctx.briefDirty()) {
+      <span class="badge warn">Unsaved changes</span>
+    } @else {
+      <span class="small muted"
+        ><lucide-icon [img]="I.Check" [size]="14" /> Saved · rev {{ ctx.brief()?.revision }}</span
+      >
+    }
+  </div>
+  @if (ctx.briefDirty()) {
+    <button class="btn sm ghost" (click)="ctx.discardBrief()">Discard</button>
+  }
+  <button
+    class="btn primary"
+    (click)="save()"
+    [disabled]="!ctx.briefDirty() || ctx.briefSaving()"
+    data-testid="save-brief"
+  >
+    <lucide-icon [img]="I.Save" [size]="16" /> Save Brief
+  </button>
+  @if (ui.mode() === 'ai' && !ui.aiPanelVisible('concept')) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('concept', true)">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+@if (b(); as brief) {
+  <div class="layout" [class.with-ai]="ui.aiPanelVisible('concept')">
+    <div class="main">
+      <!-- Row 1: hero + brief -->
+      <div class="r1">
+        <section class="card hero" id="cs-brief" aria-label="Project hero">
+          <aur-scene-art key="coastal" class="hero-art" />
+          <div class="hero-shade"></div>
+          <div class="hero-text">
+            <h2 class="hero-title">{{ ctx.project()?.name }}</h2>
+            <div class="hero-words">
+              @for (w of heroWords(); track w; let last = $last) {
+                <span>{{ w }}</span>
+                @if (!last) {
+                  <span class="sep">•</span>
+                }
+              }
+            </div>
+            <p class="hero-desc">{{ brief.description || 'Describe the creative intent in the brief…' }}</p>
+            <button class="btn hero-btn" (click)="editBrief()">
+              <lucide-icon [img]="I.PenLine" [size]="16" /> Edit Brief
+            </button>
+          </div>
+        </section>
+
+        <section class="card card-pad brief" aria-labelledby="brief-h">
+          <div class="card-head">
+            <lucide-icon [img]="I.Lightbulb" [size]="20" style="color: #f2861f" />
+            <h2 id="brief-h">Creative Brief</h2>
+          </div>
+          <div class="brief-grid">
+            <div class="col" style="gap: 12px">
+              <div class="field">
+                <label for="ftype">Fragrance Type</label>
+                <select
+                  id="ftype"
+                  class="select"
+                  [ngModel]="brief.fragranceType"
+                  (ngModelChange)="set('fragranceType', $event)"
+                  data-testid="brief-type"
+                >
+                  @for (t of typeOptions(); track t) {
+                    <option [value]="t">{{ t }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="consumer">Target Consumer</label>
+                <select
+                  id="consumer"
+                  class="select"
+                  [ngModel]="brief.targetConsumer"
+                  (ngModelChange)="set('targetConsumer', $event)"
+                >
+                  @for (t of consumerOptions(); track t) {
+                    <option [value]="t">{{ t }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <span class="label" id="kw-l">Key Words</span>
+                <div class="chips" role="list" aria-labelledby="kw-l" data-testid="brief-keywords">
+                  @for (k of brief.keywords; track k) {
+                    <span class="chip lg kw" role="listitem">
+                      {{ k }}
+                      <button class="x" [attr.aria-label]="'Remove ' + k" (click)="removeKeyword(k)">
+                        <lucide-icon [img]="I.X" [size]="12" />
+                      </button>
+                    </span>
+                  }
+                  @if (addingKeyword()) {
+                    <input
+                      class="input kw-input"
+                      aria-label="New keyword"
+                      maxlength="24"
+                      [ngModel]="newKeyword()"
+                      (ngModelChange)="newKeyword.set($event)"
+                      (keydown.enter)="addKeyword()"
+                      (blur)="addKeyword()"
+                      data-testid="keyword-input"
+                      #kwInput
+                    />
+                  } @else {
+                    <button class="chip lg add" (click)="startKeyword()" data-testid="keyword-add">
+                      <lucide-icon [img]="I.Plus" [size]="13" /> Add
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="col" style="gap: 12px">
+              <div class="field">
+                <label for="desc">Description</label>
+                <textarea
+                  #desc
+                  id="desc"
+                  class="textarea"
+                  rows="4"
+                  maxlength="500"
+                  [ngModel]="brief.description"
+                  (ngModelChange)="set('description', $event)"
+                  data-testid="brief-description"
+                ></textarea>
+                <span class="tiny muted" style="align-self: flex-end">{{ brief.description.length }}/500</span>
+              </div>
+              <div class="field">
+                <span class="label">Reference Materials</span>
+                <div
+                  class="drop"
+                  [class.over]="dragOver()"
+                  (dragover)="$event.preventDefault(); dragOver.set(true)"
+                  (dragleave)="dragOver.set(false)"
+                  (drop)="onDrop($event)"
+                >
+                  @if (brief.references.length) {
+                    <ul class="refs">
+                      @for (r of brief.references; track r.uploadId) {
+                        <li>
+                          <lucide-icon [img]="r.mime === 'application/pdf' ? I.FileText : I.Image" [size]="15" />
+                          <a [href]="uploadUrl(r.uploadId)" target="_blank" rel="noopener">{{ r.name }}</a>
+                          <span class="tiny muted">{{ r.size / 1024 | number: '1.0-0' }} KB</span>
+                          <button
+                            class="icon-btn"
+                            style="width: 24px; height: 24px"
+                            [attr.aria-label]="'Remove ' + r.name"
+                            (click)="removeReference(r.uploadId)"
+                          >
+                            <lucide-icon [img]="I.X" [size]="13" />
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
+                  <div class="row drop-row">
+                    <lucide-icon [img]="I.Paperclip" [size]="18" style="color: var(--muted)" />
+                    <span class="small muted grow">Drop images / PDFs (kept locally)</span>
+                    <label class="btn sm soft" [class.disabled]="uploading()">
+                      <lucide-icon [img]="I.Upload" [size]="14" /> {{ uploading() ? 'Uploading…' : 'Upload Files' }}
+                      <input
+                        type="file"
+                        class="sr-only"
+                        multiple
+                        accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+                        (change)="onReferenceFiles($any($event.target).files)"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <!-- Row 2: inspiration board + concepts -->
+      <div class="r2">
+        <section class="card card-pad board" id="cs-explore" aria-labelledby="board-h">
+          <div class="card-head">
+            <lucide-icon [img]="I.Image" [size]="20" style="color: #e0479e" />
+            <h2 id="board-h">Inspiration Board ({{ brief.inspirations.length }})</h2>
+            <span class="grow"></span>
+            <div class="row" role="group" aria-label="Filter inspiration">
+              @for (f of boardFilters; track f) {
+                <button class="chip-btn" [class.on]="boardFilter() === f" (click)="boardFilter.set(f)">{{ f }}</button>
+              }
+            </div>
+          </div>
+          <div class="tiles" data-testid="inspiration-board">
+            @for (t of board(); track t.id) {
+              <figure class="tile" [attr.aria-label]="t.title">
+                @if (t.source === 'upload' && t.uploadId) {
+                  <img [src]="uploadUrl(t.uploadId)" [alt]="t.title" />
+                } @else {
+                  <aur-scene-art [key]="t.artKey ?? 'waves'" />
+                }
+                <figcaption>{{ t.title }}</figcaption>
+                <button
+                  class="tile-menu"
+                  [attr.aria-label]="'Options for ' + t.title"
+                  (click)="menuFor.set(menuFor() === t.id ? null : t.id)"
+                >
+                  <lucide-icon [img]="I.Ellipsis" [size]="15" />
+                </button>
+                @if (menuFor() === t.id) {
+                  <div class="menu tile-pop">
+                    <button class="menu-item danger" (click)="removeInspiration(t.id)">
+                      <lucide-icon [img]="I.Trash2" [size]="15" /> Remove from board
+                    </button>
+                  </div>
+                }
+              </figure>
+            }
+            <button
+              class="tile add-tile"
+              (click)="pickBoardImage()"
+              [disabled]="uploading()"
+              data-testid="add-inspiration"
+            >
+              <lucide-icon [img]="I.Plus" [size]="22" />
+              <span>{{ uploading() ? 'Uploading…' : 'Add Image' }}</span>
+            </button>
+            <input
+              #boardFile
+              type="file"
+              class="sr-only"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              (change)="onBoardFiles($any($event.target).files)"
+              aria-label="Add inspiration image"
+            />
+          </div>
+        </section>
+
+        <section class="card card-pad concepts" id="cs-concepts" aria-labelledby="concepts-h">
+          <div class="card-head">
+            <lucide-icon [img]="I.SquarePen" [size]="20" style="color: #8b5cf6" />
+            <h2 id="concepts-h" class="grow">Concepts ({{ brief.concepts.length }})</h2>
+            <button class="btn primary sm" (click)="openConceptForm()" data-testid="new-concept">
+              <lucide-icon [img]="I.Plus" [size]="15" /> New Concept
+            </button>
+          </div>
+          <div class="concept-list">
+            @if (conceptForm(); as f) {
+              <form
+                class="concept-form"
+                (submit)="$event.preventDefault(); saveConceptForm()"
+                data-testid="concept-form"
+              >
+                <input
+                  class="input"
+                  placeholder="Concept name"
+                  aria-label="Concept name"
+                  maxlength="60"
+                  [ngModel]="f.name"
+                  (ngModelChange)="patchConceptForm({ name: $event })"
+                  name="cname"
+                  required
+                  data-testid="concept-name"
+                />
+                <input
+                  class="input"
+                  placeholder="Tags, comma separated"
+                  aria-label="Concept tags"
+                  [ngModel]="f.tags"
+                  (ngModelChange)="patchConceptForm({ tags: $event })"
+                  name="ctags"
+                  data-testid="concept-tags"
+                />
+                <textarea
+                  class="textarea"
+                  rows="2"
+                  placeholder="Short description"
+                  aria-label="Concept description"
+                  maxlength="300"
+                  [ngModel]="f.description"
+                  (ngModelChange)="patchConceptForm({ description: $event })"
+                  name="cdesc"
+                  data-testid="concept-desc"
+                ></textarea>
+                <div class="row art-pick" role="radiogroup" aria-label="Concept artwork">
+                  @for (k of artKeys; track k) {
+                    <button
+                      type="button"
+                      class="art-opt"
+                      role="radio"
+                      [attr.aria-checked]="f.artKey === k"
+                      [class.on]="f.artKey === k"
+                      (click)="patchConceptForm({ artKey: k })"
+                      [attr.aria-label]="k"
+                    >
+                      <aur-scene-art [key]="k" />
+                    </button>
+                  }
+                </div>
+                <div class="row" style="justify-content: flex-end">
+                  <button type="button" class="btn sm ghost" (click)="conceptForm.set(null)">Cancel</button>
+                  <button type="submit" class="btn sm primary" [disabled]="!f.name.trim()" data-testid="concept-add">
+                    Add concept
+                  </button>
+                </div>
+              </form>
+            }
+            @for (c of brief.concepts; track c.id; let i = $index) {
+              <article class="concept" [class.sel]="c.selected" [attr.data-testid]="'concept-' + c.name">
+                <div class="c-art"><aur-scene-art [key]="c.artKey" /></div>
+                <div class="col grow" style="gap: 5px; min-width: 0">
+                  <b>{{ i + 1 }}. {{ c.name }}</b>
+                  <div class="row" style="gap: 5px; flex-wrap: wrap">
+                    @for (t of c.tags; track t) {
+                      <span class="chip">{{ t }}</span>
+                    }
+                  </div>
+                  <p class="small c-desc">{{ c.description }}</p>
+                </div>
+                <div class="col c-actions">
+                  <button
+                    class="icon-btn bordered"
+                    [attr.aria-label]="(c.selected ? 'Unselect ' : 'Select ') + c.name + ' as direction'"
+                    [attr.aria-pressed]="c.selected"
+                    (click)="toggleConcept(c.id)"
+                    [class.star]="c.selected"
+                  >
+                    <lucide-icon [img]="I.Star" [size]="15" />
+                  </button>
+                  <button
+                    class="icon-btn bordered"
+                    [attr.aria-label]="'More for ' + c.name"
+                    (click)="menuFor.set(menuFor() === c.id ? null : c.id)"
+                  >
+                    <lucide-icon [img]="I.Ellipsis" [size]="15" />
+                  </button>
+                  @if (menuFor() === c.id) {
+                    <div class="menu c-pop">
+                      <button class="menu-item" (click)="removeConcept(c.id)">
+                        <lucide-icon [img]="I.Trash2" [size]="15" /> Delete concept
+                      </button>
+                    </div>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="muted small">No concepts yet. Create one or start from a quick direction below.</p>
+            }
+          </div>
+        </section>
+      </div>
+      <!-- Row 3: quick directions -->
+      <section class="card card-pad directions" id="cs-refine" aria-labelledby="dir-h">
+        <div class="card-head" style="margin-bottom: 8px">
+          <lucide-icon [img]="I.Sparkles" [size]="20" style="color: #8b5cf6" />
+          <div class="col grow" style="gap: 2px">
+            <h2 id="dir-h">Quick Creative Directions</h2>
+            <span class="small muted"
+              >Manually explore different creative angles based on the brief and inspiration. Click to add as an
+              editable concept.</span
+            >
+          </div>
+          <div class="seg">
+            <button [class.on]="directionsView() === 'cards'" (click)="directionsView.set('cards')">
+              <lucide-icon [img]="I.LayoutGrid" [size]="14" /> View as Cards
+            </button>
+            <button [class.on]="directionsView() === 'list'" (click)="directionsView.set('list')">
+              <lucide-icon [img]="I.List" [size]="14" /> View as List
+            </button>
+          </div>
+        </div>
+        <div class="dirs" [class.list]="directionsView() === 'list'">
+          @for (d of directions; track d.name) {
+            <button
+              class="dir"
+              [style.background]="d.tint"
+              (click)="addDirection(d)"
+              [attr.aria-label]="'Add ' + d.name + ' as concept'"
+            >
+              <div class="d-art"><aur-scene-art [key]="d.art" /></div>
+              <div class="d-text">
+                <b>{{ d.name }}</b>
+                <span class="small">{{ d.description }}</span>
+              </div>
+              <span class="d-go"><lucide-icon [img]="I.ArrowRight" [size]="15" /></span>
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+    @if (ui.aiPanelVisible('concept')) {
+      <aur-ai-partner-panel workspace="concept" class="ai-col" />
+    }
+  </div>
+}

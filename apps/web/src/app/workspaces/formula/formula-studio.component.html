@@ -1,0 +1,537 @@
+<div class="page-head">
+  <span class="ws-icon"
+    ><lucide-icon [img]="explorationAi() ? I.WandSparkles : I.FlaskConical" [size]="30" style="color: #d6409f"
+  /></span>
+  <h1 data-testid="workspace-title">{{ explorationAi() ? '3D Exploration (AI Assisted)' : 'Formula Studio' }}</h1>
+  <span class="sub">
+    {{
+      explorationAi()
+        ? 'Explore and refine your formula in an immersive 3D space.'
+        : 'Create, refine and optimize fragrance formulas'
+    }}{{ ui.mode() === 'ai' && !explorationAi() ? ' with AI support (unavailable)' : '' }}
+  </span>
+  <span class="grow"></span>
+  @if (ctx.draftSaving()) {
+    <span class="tiny muted">saving draft…</span>
+  }
+  <button class="btn" (click)="saveOpen.set(true)" [disabled]="!ctx.workingItems().length" data-testid="save-version">
+    <lucide-icon [img]="I.Save" [size]="16" /> Save Version
+  </button>
+  <div class="pos">
+    <button
+      class="btn icon"
+      aria-label="More formula actions"
+      (click)="menuOpen.set(menuOpen() === 'more' ? null : 'more')"
+    >
+      <lucide-icon [img]="I.EllipsisVertical" [size]="16" />
+    </button>
+    @if (menuOpen() === 'more') {
+      <div class="menu" style="right: 0; top: 42px" role="menu">
+        <button class="menu-item" role="menuitem" (click)="menuOpen.set(null); ctx.normalize()">
+          <lucide-icon [img]="I.Scale" [size]="15" /> Normalize draft to 100 %
+        </button>
+        <button class="menu-item" role="menuitem" (click)="menuOpen.set(null); patch({ tab: 'history' })">
+          <lucide-icon [img]="I.History" [size]="15" /> Version history
+        </button>
+      </div>
+    }
+  </div>
+  <div class="pos">
+    <button
+      class="btn primary"
+      (click)="menuOpen.set(menuOpen() === 'analysis' ? null : 'analysis')"
+      aria-haspopup="menu"
+      data-testid="run-analysis"
+    >
+      <lucide-icon [img]="I.Sparkles" [size]="16" /> Run Analysis <lucide-icon [img]="I.ChevronDown" [size]="15" />
+    </button>
+    @if (menuOpen() === 'analysis') {
+      <div class="menu analysis-menu" role="menu">
+        <div class="menu-item" role="menuitem" aria-disabled="true">
+          <lucide-icon [img]="I.Check" [size]="15" style="color: var(--ok)" />
+          <span class="col" style="gap: 0"
+            ><b class="small">Totals &amp; accord balance</b
+            ><span class="tiny muted">computed live by the API (deterministic)</span></span
+          >
+        </div>
+        <button class="menu-item" role="menuitem" (click)="menuOpen.set(null); goValidation()">
+          <lucide-icon [img]="I.ShieldCheck" [size]="15" />
+          <span class="col" style="gap: 0"
+            ><b class="small">Validation checks</b
+            ><span class="tiny muted">Validation Studio · milestone M2</span></span
+          >
+        </button>
+        <div class="menu-item" role="menuitem" aria-disabled="true" style="opacity: 0.6">
+          <lucide-icon [img]="I.Lock" [size]="15" />
+          <span class="col" style="gap: 0"
+            ><b class="small">Stability / performance prediction</b
+            ><span class="tiny muted">Not available — no validated model</span></span
+          >
+        </div>
+      </div>
+    }
+  </div>
+  <div class="pos">
+    <button class="btn" (click)="menuOpen.set(menuOpen() === 'export' ? null : 'export')" aria-haspopup="menu">
+      Export <lucide-icon [img]="I.ChevronDown" [size]="15" />
+    </button>
+    @if (menuOpen() === 'export') {
+      <div class="menu" style="right: 0; top: 42px" role="menu">
+        <button class="menu-item" role="menuitem" (click)="exportDraft('json')">
+          <lucide-icon [img]="I.Download" [size]="15" /> Draft as JSON
+        </button>
+        <button class="menu-item" role="menuitem" (click)="exportDraft('csv')">
+          <lucide-icon [img]="I.Download" [size]="15" /> Draft as CSV
+        </button>
+      </div>
+    }
+  </div>
+  @if (ui.mode() === 'ai' && !aiOn()) {
+    <button class="btn soft sm" (click)="ui.setAiPanel('formula', true)" data-testid="ai-panel-show">
+      <lucide-icon [img]="I.Sparkles" [size]="15" /> AI panel
+    </button>
+  }
+</div>
+
+<div class="tabs ws-tabs" role="tablist">
+  <button
+    class="tab"
+    role="tab"
+    [class.on]="f().tab === 'builder'"
+    [attr.aria-selected]="f().tab === 'builder'"
+    (click)="patch({ tab: 'builder' })"
+    data-testid="tab-builder"
+  >
+    <lucide-icon [img]="I.FlaskConical" [size]="16" /> Formula Builder
+  </button>
+  <button
+    class="tab"
+    role="tab"
+    [class.on]="f().tab === 'history'"
+    [attr.aria-selected]="f().tab === 'history'"
+    (click)="patch({ tab: 'history' })"
+    data-testid="tab-history"
+  >
+    <lucide-icon [img]="I.GitBranch" [size]="16" /> Formula Variations ({{ ctx.versions().length }})
+  </button>
+  <button
+    class="tab"
+    role="tab"
+    [class.on]="f().tab === 'compare'"
+    [attr.aria-selected]="f().tab === 'compare'"
+    (click)="patch({ tab: 'compare' })"
+    data-testid="tab-compare"
+  >
+    <lucide-icon [img]="I.GitCompareArrows" [size]="16" /> Compare Versions
+  </button>
+  <button class="tab" role="tab" aria-selected="false" (click)="goValidation()">
+    <lucide-icon [img]="I.ShieldCheck" [size]="16" /> Stability &amp; Compliance
+    <span class="badge info" style="height: 18px">M2</span>
+  </button>
+</div>
+
+<ng-template #canvas>
+  <section class="card canvas-card" aria-label="Formula canvas">
+    <div class="switcher" role="tablist" aria-label="Canvas view">
+      @for (c of canvases; track c.key) {
+        <button
+          role="tab"
+          [class.on]="f().canvasMode === c.key"
+          [attr.aria-selected]="f().canvasMode === c.key"
+          (click)="setCanvas(c.key)"
+          [attr.data-testid]="'canvas-' + c.key"
+        >
+          <lucide-icon [img]="I[c.icon]" [size]="17" /> {{ c.label }}
+        </button>
+      }
+      <span class="grow"></span>
+      <button
+        class="icon-btn bordered"
+        [attr.aria-label]="f().expanded ? 'Exit expanded view' : 'Expand canvas'"
+        (click)="patch({ expanded: !f().expanded })"
+        data-testid="canvas-expand"
+      >
+        <lucide-icon [img]="f().expanded ? I.Minimize2 : I.Maximize2" [size]="16" />
+      </button>
+    </div>
+
+    @if (f().canvasMode === 'formula3d') {
+      <div class="subbar">
+        <span class="tiny muted">View Mode</span>
+        <div class="seg">
+          <button
+            [class.on]="f().formula3dView === 'families'"
+            (click)="patch({ formula3dView: 'families' })"
+            data-testid="f3d-families"
+          >
+            Ingredient Families
+          </button>
+          <button
+            [class.on]="f().formula3dView === 'volatility'"
+            (click)="patch({ formula3dView: 'volatility' })"
+            data-testid="f3d-volatility"
+          >
+            Volatility (Top/Heart/Base)
+          </button>
+        </div>
+      </div>
+    } @else if (f().canvasMode === 'ingredients3d') {
+      <div class="subbar">
+        <span class="tiny muted">View</span>
+        <div class="seg">
+          <button [class.on]="f().ingredients3dView === 'clusters'" (click)="patch({ ingredients3dView: 'clusters' })">
+            Clusters
+          </button>
+          <button
+            [class.on]="f().ingredients3dView === 'network'"
+            (click)="patch({ ingredients3dView: 'network' })"
+            data-testid="i3d-network"
+          >
+            Network
+          </button>
+          <button
+            [class.on]="f().ingredients3dView === 'list'"
+            (click)="patch({ ingredients3dView: 'list' })"
+            data-testid="i3d-list"
+          >
+            List
+          </button>
+        </div>
+        <span class="grow"></span>
+        <label class="small row" style="gap: 5px"
+          ><input type="checkbox" [checked]="f().showLabels" (change)="patch({ showLabels: !f().showLabels })" />
+          Labels</label
+        >
+        <label class="small row" style="gap: 5px" title="Lines join formula ingredients that share a descriptor tag"
+          ><input
+            type="checkbox"
+            [checked]="f().showConnections"
+            (change)="patch({ showConnections: !f().showConnections })"
+          />
+          Links</label
+        >
+        <label class="small row" style="gap: 5px" title="Same-family catalog ingredients not in the formula"
+          ><input type="checkbox" [checked]="f().showRelated" (change)="patch({ showRelated: !f().showRelated })" />
+          Related</label
+        >
+      </div>
+    }
+
+    <div class="canvas-body" [attr.data-canvas]="f().canvasMode">
+      @switch (f().canvasMode) {
+        @case ('inspiration') {
+          <aur-inspiration-canvas />
+        }
+        @case ('formula3d') {
+          <aur-formula-3d
+            [lines]="lines()"
+            [accords]="accords()"
+            [pyramid]="pyramid()"
+            [view]="f().formula3dView"
+            [layer]="f().formula3dLayer"
+            [selectedIngredientId]="ui.selectedIngredientId()"
+            [selectedFamily]="f().selectedFamily"
+            [compactTools]="!f().expanded"
+            (selectIngredient)="selectIngredient($event)"
+            (selectFamily)="selectFamily($event)"
+          />
+          <div class="layer-seg seg">
+            <button [class.on]="f().formula3dLayer === 'bottle'" (click)="patch({ formula3dLayer: 'bottle' })">
+              Bottle View
+            </button>
+            <button
+              [class.on]="f().formula3dLayer === 'ingredients'"
+              (click)="patch({ formula3dLayer: 'ingredients' })"
+              data-testid="f3d-ingredient-view"
+            >
+              Ingredient View
+            </button>
+          </div>
+        }
+        @case ('ingredients3d') {
+          @if (f().ingredients3dView === 'list') {
+            <div class="i3d-list" data-testid="i3d-fallback-list">
+              @for (a of accords(); track a.family) {
+                <div class="grp">
+                  <div class="row">
+                    <i class="dot" [style.background]="fam(a.family).color"></i
+                    ><b class="small">{{ fam(a.family).label }}</b
+                    ><span class="tiny muted">{{ (+a.sharePct).toFixed(1) }} % of formula</span>
+                  </div>
+                  @for (l of lines(); track l.lineId) {
+                    @if (l.ingredient.family === a.family) {
+                      <button
+                        class="li"
+                        [class.on]="l.ingredient.id === ui.selectedIngredientId()"
+                        (click)="selectIngredient(l.ingredient.id)"
+                      >
+                        <aur-ingredient-art [motif]="l.ingredient.art.motif" [hue]="l.ingredient.art.hue" [size]="28" />
+                        {{ l.ingredient.name }} <span class="tiny muted">{{ l.pct.toFixed(2) }} %</span>
+                      </button>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <aur-ingredients-3d
+              [lines]="lines()"
+              [catalog]="ctx.catalog()"
+              [mode]="f().ingredients3dView === 'network' ? 'network' : 'clusters'"
+              [showLabels]="f().showLabels"
+              [showConnections]="f().showConnections"
+              [showRelated]="f().showRelated"
+              [selectedIngredientId]="ui.selectedIngredientId()"
+              [compactTools]="!f().expanded"
+              (selectIngredient)="selectIngredient($event)"
+            />
+          }
+        }
+        @case ('molecular') {
+          <aur-molecular-inspector [layout]="f().expanded ? 'split' : 'viewer'" />
+        }
+      }
+      @if (selected(); as s) {
+        @if (f().canvasMode !== 'molecular' && f().canvasMode !== 'inspiration' && !f().expanded) {
+          <div class="sel-chip" data-testid="selected-chip">
+            <aur-ingredient-art [motif]="s.art.motif" [hue]="s.art.hue" [size]="30" />
+            <span class="col" style="gap: 0">
+              <b class="small">{{ s.name }}</b>
+              <span class="tiny muted"
+                >{{ fam(s.family).label }} · {{ role(s.role).label
+                }}{{ selectedPct() ? ' · ' + selectedPct() + ' %' : ' · not in formula' }}</span
+              >
+            </span>
+            <button class="btn sm ghost" (click)="inspectSelected()">Inspect</button>
+          </div>
+        }
+      }
+    </div>
+  </section>
+</ng-template>
+
+@switch (f().tab) {
+  @case ('builder') {
+    @if (f().expanded) {
+      <!-- Expanded 3D state (FS-3DF/3DI expanded; FS-06 in AI Assist) -->
+      <div class="expanded" [class.ai]="explorationAi()" data-testid="formula-expanded">
+        <div class="ex-canvas"><ng-container [ngTemplateOutlet]="canvas" /></div>
+        <aside class="ex-side">
+          <section class="card card-pad sel-card" data-testid="selected-ingredient-card">
+            <div class="card-head" style="margin-bottom: 8px">
+              <h3 class="grow">Selected Ingredient</h3>
+              <button class="btn sm soft" (click)="openInExplorer()">Explorer</button>
+            </div>
+            @if (selected(); as s) {
+              <div class="row" style="gap: 12px; align-items: flex-start">
+                <aur-ingredient-art [motif]="s.art.motif" [hue]="s.art.hue" [size]="74" />
+                <div class="col" style="gap: 4px; min-width: 0">
+                  <b style="font-size: 17px">{{ s.name }}</b>
+                  <span
+                    class="badge"
+                    [class]="s.kind === 'natural_mixture' ? 'badge ok' : 'badge info'"
+                    style="align-self: flex-start"
+                    >{{ kindLabel(s.kind) }}</span
+                  >
+                  <span class="tiny muted">{{ s.systematicName }}</span>
+                  <div class="row" style="gap: 4px; flex-wrap: wrap">
+                    <span class="chip" [style.background]="fam(s.family).tint" [style.color]="fam(s.family).ink">{{
+                      fam(s.family).label
+                    }}</span>
+                    <span class="chip" [style.background]="role(s.role).tint" [style.color]="role(s.role).ink"
+                      >{{ role(s.role).label }} Note</span
+                    >
+                    @for (d of s.descriptors.slice(0, 2); track d) {
+                      <span class="chip">{{ d }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="row" style="margin-top: 12px">
+                <span class="small grow"
+                  >In formula: <b>{{ selectedPct() ? selectedPct() + ' % (w/w)' : '—' }}</b></span
+                >
+                @if (!selectedPct()) {
+                  <button class="btn sm primary" (click)="ctx.addIngredient(s.id)">
+                    <lucide-icon [img]="I.Plus" [size]="14" /> Add
+                  </button>
+                }
+                <button class="btn sm" (click)="inspectSelected()">
+                  <lucide-icon [img]="I.Atom" [size]="14" /> Inspect
+                </button>
+              </div>
+              <p class="tiny muted" style="margin-top: 10px">
+                Intensity, diffusion and tenacity: <b>Not assessed</b> (no measured data).
+              </p>
+            } @else {
+              <p class="small muted">Click a sphere or label in the 3D view.</p>
+            }
+          </section>
+          @if (explorationAi()) {
+            @if (aiOn()) {
+              <section
+                class="card card-pad ai-sugg"
+                aria-label="AI Exploration Suggestions"
+                data-testid="ai-exploration"
+              >
+                <div class="card-head" style="margin-bottom: 6px">
+                  <lucide-icon [img]="I.Sparkles" [size]="18" style="color: #8b5cf6" />
+                  <h3 class="grow">AI Exploration Suggestions</h3>
+                  <button class="btn sm ghost" disabled>
+                    <lucide-icon [img]="I.RefreshCw" [size]="14" /> Regenerate
+                  </button>
+                  <button
+                    class="icon-btn"
+                    aria-label="Hide suggestions"
+                    (click)="ui.setAiPanel('formula', false)"
+                    data-testid="ai-exploration-close"
+                  >
+                    <lucide-icon [img]="I.X" [size]="16" />
+                  </button>
+                </div>
+                <div class="ai-off" role="status" data-testid="ai-unavailable">
+                  <lucide-icon [img]="I.Lock" [size]="18" />
+                  <span class="small">
+                    <b>No suggestions — AI gateway not connected.</b> When approved (M4), suggestions will appear here
+                    as pending proposals with a preview diff. Nothing is applied without your explicit acceptance.
+                  </span>
+                </div>
+                <div class="ghost-sugg" aria-hidden="true">
+                  @for (n of [1, 2, 3]; track n) {
+                    <div class="gs">
+                      <span class="ph a"></span
+                      ><span class="col grow" style="gap: 5px"
+                        ><span class="ph b"></span><span class="ph c"></span></span
+                      ><span class="ph d"></span>
+                    </div>
+                  }
+                </div>
+              </section>
+            } @else {
+              <button class="btn soft" (click)="ui.setAiPanel('formula', true)">Show AI suggestions panel</button>
+            }
+          } @else {
+            <section class="card card-pad mini-acc" aria-label="Accord balance">
+              <div class="card-head" style="margin-bottom: 6px">
+                <h3 class="grow">Accord Balance</h3>
+                <span class="tiny muted">from API</span>
+              </div>
+              @for (a of accords(); track a.family) {
+                <div class="row" style="gap: 8px; margin-bottom: 7px">
+                  <span class="small" style="width: 64px">{{ fam(a.family).label }}</span>
+                  <div class="bar grow">
+                    <span [style.width.%]="+a.sharePct" [style.background]="fam(a.family).color"></span>
+                  </div>
+                  <span class="tiny" style="width: 34px; text-align: right">{{ (+a.sharePct).toFixed(0) }}%</span>
+                </div>
+              }
+            </section>
+          }
+        </aside>
+        <section class="card live" aria-label="Formula ingredients live view" data-testid="live-strip">
+          <div class="row" style="margin-bottom: 8px">
+            <h3 class="grow" style="font-size: 15px">Formula Ingredients (Live View)</h3>
+            <span class="tiny muted"
+              >Total {{ ctx.draft()?.computed?.totalPctDisplay }} % ·
+              {{ ctx.computedStale() ? 'calculating…' : 'computed by API' }}</span
+            >
+          </div>
+          <div class="live-row">
+            @for (l of lines(); track l.lineId) {
+              <div
+                class="lc"
+                [class.on]="l.ingredient.id === ui.selectedIngredientId()"
+                (click)="selectIngredient(l.ingredient.id)"
+                role="button"
+                tabindex="0"
+                (keydown.enter)="selectIngredient(l.ingredient.id)"
+              >
+                <aur-ingredient-art [motif]="l.ingredient.art.motif" [hue]="l.ingredient.art.hue" [size]="46" />
+                <span class="col" style="gap: 2px; min-width: 0">
+                  <b class="small">{{ l.ingredient.name }}</b>
+                  <span class="small">{{ l.pct.toFixed(1) }}%</span>
+                  <span
+                    class="chip"
+                    [style.background]="role(l.ingredient.role).tint"
+                    [style.color]="role(l.ingredient.role).ink"
+                    style="height: 18px; font-size: 10.5px; align-self: flex-start"
+                    >{{ role(l.ingredient.role).label }} Note</span
+                  >
+                </span>
+                <button
+                  class="x"
+                  [attr.aria-label]="'Remove ' + l.ingredient.name"
+                  (click)="$event.stopPropagation(); removeSelectedFromFormula(l.lineId)"
+                >
+                  <lucide-icon [img]="I.X" [size]="13" />
+                </button>
+              </div>
+            }
+            <button class="lc add" (click)="addOpen.set(!addOpen())" data-testid="live-add">
+              <lucide-icon [img]="I.Plus" [size]="20" /> Add Ingredient
+            </button>
+          </div>
+          @if (addOpen()) {
+            <div class="add-pop card card-pad">
+              <aur-ingredient-library (collapse)="addOpen.set(false)" (added)="addOpen.set(false)" />
+            </div>
+          }
+        </section>
+      </div>
+    } @else {
+      <div class="builder" [class.collapsed]="f().libraryCollapsed" [class.ai]="aiOn()">
+        @if (!f().libraryCollapsed) {
+          <aside class="card card-pad lib">
+            <aur-ingredient-library (collapse)="patch({ libraryCollapsed: true })" />
+          </aside>
+        } @else {
+          <button
+            class="lib-rail card"
+            aria-label="Show ingredient library"
+            (click)="patch({ libraryCollapsed: false })"
+          >
+            <lucide-icon [img]="I.ChevronsRight" [size]="18" /><span>Library</span>
+          </button>
+        }
+        <div class="b-canvas"><ng-container [ngTemplateOutlet]="canvas" /></div>
+        <section class="card card-pad b-table" aria-label="Formula table or inspector">
+          <div class="seg right-seg" role="group" aria-label="Right panel">
+            <button
+              [class.on]="f().rightPanel === 'table'"
+              (click)="patch({ rightPanel: 'table' })"
+              data-testid="right-table"
+            >
+              <lucide-icon [img]="I.List" [size]="14" /> Formula
+            </button>
+            <button
+              [class.on]="f().rightPanel === 'inspector'"
+              (click)="patch({ rightPanel: 'inspector' })"
+              data-testid="right-inspector"
+            >
+              <lucide-icon [img]="I.Atom" [size]="14" /> Molecular Inspector
+            </button>
+          </div>
+          @if (f().rightPanel === 'inspector') {
+            <aur-molecular-inspector layout="side" class="right-body" />
+          } @else {
+            <aur-formula-table class="right-body" [basedOnLabel]="basedOnLabel()" (normalize)="ctx.normalize()" />
+          }
+        </section>
+        <aur-formula-insights class="b-insights" />
+        @if (aiOn()) {
+          <aur-ai-partner-panel workspace="formula" class="b-ai" />
+        }
+      </div>
+    }
+  }
+  @case ('history') {
+    <div class="tabbody"><aur-version-history (compare)="patch({ tab: 'compare' })" /></div>
+  }
+  @case ('compare') {
+    <div class="tabbody"><aur-version-compare /></div>
+  }
+}
+
+@if (saveOpen()) {
+  <aur-save-version-dialog (dismiss)="saveOpen.set(false)" (saved)="onSaved($event)" />
+}

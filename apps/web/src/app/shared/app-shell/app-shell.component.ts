@@ -15,7 +15,15 @@ import { WORKSPACES } from './nav';
 @Component({
   selector: 'aur-app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule, DatePipe, SceneArtComponent, HeaderBarComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    LucideAngularModule,
+    DatePipe,
+    SceneArtComponent,
+    HeaderBarComponent,
+  ],
   styleUrl: './app-shell.component.scss',
   template: `
     <div class="shell" [class.ai]="ui.mode() === 'ai'" [attr.data-mode]="ui.mode()">
@@ -24,7 +32,8 @@ import { WORKSPACES } from './nav';
           <svg viewBox="0 0 64 64" width="38" height="38" aria-hidden="true">
             <defs>
               <linearGradient id="brandg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#3b82ff" /><stop offset="1" stop-color="#1446d8" />
+                <stop offset="0" stop-color="#3b82ff" />
+                <stop offset="1" stop-color="#1446d8" />
               </linearGradient>
             </defs>
             <path d="M32 4 56 18v28L32 60 8 46V18z" fill="url(#brandg)" />
@@ -96,7 +105,9 @@ import { WORKSPACES } from './nav';
         @for (t of toast.toasts(); track t.id) {
           <div class="toast" [class]="'toast ' + t.kind" role="status">
             <span>{{ t.text }}</span>
-            <button class="icon-btn" aria-label="Dismiss" (click)="toast.dismiss(t.id)"><lucide-icon [img]="I.X" [size]="14" /></button>
+            <button class="icon-btn" aria-label="Dismiss" (click)="toast.dismiss(t.id)">
+              <lucide-icon [img]="I.X" [size]="14" />
+            </button>
           </div>
         }
       </div>

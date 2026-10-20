@@ -1,5 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
@@ -55,9 +64,21 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | null;
       <div class="spacer"></div>
 
       <div class="pos">
-        <button class="proj" (click)="toggle('project')" [attr.aria-expanded]="open() === 'project'" aria-haspopup="menu" data-testid="project-selector">
+        <button
+          class="proj"
+          (click)="toggle('project')"
+          [attr.aria-expanded]="open() === 'project'"
+          aria-haspopup="menu"
+          data-testid="project-selector"
+        >
           <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3z" fill="none" stroke="#f2861f" stroke-width="2.2" stroke-linejoin="round" />
+            <path
+              d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3z"
+              fill="none"
+              stroke="#f2861f"
+              stroke-width="2.2"
+              stroke-linejoin="round"
+            />
           </svg>
           <span class="col" style="gap: 0; text-align: left">
             <b>{{ ctx.project()?.name ?? '…' }}</b>
@@ -76,7 +97,15 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | null;
               </button>
             }
             <form class="new-proj" (submit)="$event.preventDefault(); createProject()">
-              <input class="input" style="height: 32px" placeholder="New project name" [(ngModel)]="newName" name="newName" aria-label="New project name" maxlength="80" />
+              <input
+                class="input"
+                style="height: 32px"
+                placeholder="New project name"
+                [(ngModel)]="newName"
+                name="newName"
+                aria-label="New project name"
+                maxlength="80"
+              />
               <button class="btn sm primary" type="submit" [disabled]="!newName.trim()">Create</button>
             </form>
           </div>
@@ -84,21 +113,38 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | null;
       </div>
 
       <div class="mode" role="group" aria-label="Working mode" data-testid="mode-switch">
-        <button [class.on]="ui.mode() === 'manual'" [attr.aria-pressed]="ui.mode() === 'manual'" (click)="ui.setMode('manual')" data-testid="mode-manual">
+        <button
+          [class.on]="ui.mode() === 'manual'"
+          [attr.aria-pressed]="ui.mode() === 'manual'"
+          (click)="ui.setMode('manual')"
+          data-testid="mode-manual"
+        >
           Manual
         </button>
-        <button [class.on]="ui.mode() === 'ai'" [attr.aria-pressed]="ui.mode() === 'ai'" (click)="ui.setMode('ai')" data-testid="mode-ai">
+        <button
+          [class.on]="ui.mode() === 'ai'"
+          [attr.aria-pressed]="ui.mode() === 'ai'"
+          (click)="ui.setMode('ai')"
+          data-testid="mode-ai"
+        >
           AI Assist
         </button>
       </div>
 
       <div class="pos">
-        <button class="icon-btn" aria-label="Activity" (click)="toggle('bell'); ctx.refreshAudit()" data-testid="activity-button">
+        <button
+          class="icon-btn"
+          aria-label="Activity"
+          (click)="toggle('bell'); ctx.refreshAudit()"
+          data-testid="activity-button"
+        >
           <lucide-icon [img]="I.Bell" [size]="20" />
         </button>
         @if (open() === 'bell') {
           <div class="menu bell-menu" role="dialog" aria-label="Recent activity">
-            <div class="row" style="padding: 4px 8px 8px"><b class="grow">Audit trail</b><span class="tiny muted">immutable, local</span></div>
+            <div class="row" style="padding: 4px 8px 8px">
+              <b class="grow">Audit trail</b><span class="tiny muted">immutable, local</span>
+            </div>
             @for (e of ctx.audit(); track e.id) {
               <div class="ev">
                 <span class="dot" [style.background]="e.action.startsWith('version') ? '#1f66ff' : '#a7b1c9'"></span>
@@ -115,15 +161,23 @@ type Menu = 'project' | 'bell' | 'help' | 'search' | null;
       </div>
 
       <div class="pos">
-        <button class="icon-btn" aria-label="About this build" (click)="toggle('help')"><lucide-icon [img]="I.CircleHelp" [size]="20" /></button>
+        <button class="icon-btn" aria-label="About this build" (click)="toggle('help')">
+          <lucide-icon [img]="I.CircleHelp" [size]="20" />
+        </button>
         @if (open() === 'help') {
           <div class="menu help-menu" role="dialog" aria-label="About this build">
             <b>Aurora — local proof of concept (M1)</b>
             <ul class="small">
               <li>All data is synthetic and stays on this computer (local NestJS API + JSON file).</li>
-              <li>Manual mode makes zero AI calls. AI Assist is shown as <i>unavailable</i> until an endpoint is approved (M4).</li>
+              <li>
+                Manual mode makes zero AI calls. AI Assist is shown as <i>unavailable</i> until an endpoint is approved
+                (M4).
+              </li>
               <li>Totals, accords and versions are computed deterministically by the API.</li>
-              <li>Regulatory, allergen, sustainability and performance data are <b>Not assessed</b> — no verified source is configured.</li>
+              <li>
+                Regulatory, allergen, sustainability and performance data are <b>Not assessed</b> — no verified source
+                is configured.
+              </li>
               <li>3D layouts are exploratory visualisations, not measured similarity or sensory prediction.</li>
             </ul>
           </div>
@@ -158,14 +212,42 @@ export class HeaderBarComponent {
       .catalog()
       .filter((i) => i.name.toLowerCase().includes(n) || i.descriptors.some((d) => d.toLowerCase().includes(n)))
       .slice(0, 6)
-      .map((i) => ({ key: `i${i.id}`, kind: 'ingredient' as const, id: i.id, title: i.name, sub: `Ingredient · ${fam(i.family).label}`, art: i.art, icon: I.Leaf }));
+      .map((i) => ({
+        key: `i${i.id}`,
+        kind: 'ingredient' as const,
+        id: i.id,
+        title: i.name,
+        sub: `Ingredient · ${fam(i.family).label}`,
+        art: i.art,
+        icon: I.Leaf,
+      }));
     const concepts = (this.ctx.briefEdit()?.concepts ?? [])
       .filter((c) => c.name.toLowerCase().includes(n))
-      .map((c) => ({ key: `c${c.id}`, kind: 'concept' as const, id: c.id, title: c.name, sub: 'Concept', art: null, icon: I.Lightbulb }));
+      .map((c) => ({
+        key: `c${c.id}`,
+        kind: 'concept' as const,
+        id: c.id,
+        title: c.name,
+        sub: 'Concept',
+        art: null,
+        icon: I.Lightbulb,
+      }));
     const versions = this.ctx
       .versions()
-      .filter((v) => v.versionLabel.toLowerCase().includes(n) || `${this.ctx.project()?.name} ${v.versionLabel}`.toLowerCase().includes(n))
-      .map((v) => ({ key: `v${v.id}`, kind: 'version' as const, id: v.id, title: `${this.ctx.project()?.name} – ${v.versionLabel}`, sub: `Saved formula version · ${v.totalPct.slice(0, -4)} %`, art: null, icon: I.History }));
+      .filter(
+        (v) =>
+          v.versionLabel.toLowerCase().includes(n) ||
+          `${this.ctx.project()?.name} ${v.versionLabel}`.toLowerCase().includes(n),
+      )
+      .map((v) => ({
+        key: `v${v.id}`,
+        kind: 'version' as const,
+        id: v.id,
+        title: `${this.ctx.project()?.name} – ${v.versionLabel}`,
+        sub: `Saved formula version · ${v.totalPct.slice(0, -4)} %`,
+        art: null,
+        icon: I.History,
+      }));
     return [...ing, ...concepts, ...versions].slice(0, 10);
   });
 

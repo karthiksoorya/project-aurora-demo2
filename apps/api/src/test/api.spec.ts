@@ -168,6 +168,8 @@ describe('formula draft, versions, compare (A4, A5, A12, A13)', () => {
     expect(berg.leftPct).toBe('18.000000');
     expect(berg.change).toBe('changed');
     expect(cmp.summary.changed).toBeGreaterThan(0);
+    expect(cmp.pyramid.left.top.massPct).toBe('30.000000'); // bergamot 18 + linalool 12 in V1
+    expect(Number(cmp.pyramid.right.top.sharePct)).toBeGreaterThan(30);
   });
 
   it('data and hashes survive an API restart (A12)', async () => {

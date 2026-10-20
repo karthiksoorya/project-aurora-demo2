@@ -216,7 +216,15 @@ export interface FormulaVersion {
   hashVerified: boolean;
 }
 export interface CompareResult {
-  left: { id: string; versionLabel: string; savedAt: string; snapshotHash: string; hashVerified: boolean; totalPct: string; completeness: string };
+  left: {
+    id: string;
+    versionLabel: string;
+    savedAt: string;
+    snapshotHash: string;
+    hashVerified: boolean;
+    totalPct: string;
+    completeness: string;
+  };
   right: CompareResult['left'];
   basis: string;
   rows: {
@@ -230,6 +238,7 @@ export interface CompareResult {
     change: 'added' | 'removed' | 'changed' | 'unchanged';
   }[];
   accords: { family: Family; leftSharePct: string; rightSharePct: string }[];
+  pyramid: Record<'left' | 'right', Record<NoteRole, { massPct: string; sharePct: string }>>;
   summary: { added: number; removed: number; changed: number; unchanged: number };
 }
 

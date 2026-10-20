@@ -6,9 +6,24 @@ import { WorkspaceStateService } from '../../core/workspace-state/workspace-stat
 import { I } from '../icons';
 
 const CAPABILITIES: Record<WorkspaceKey, string[]> = {
-  concept: ['Suggest creative directions from the brief', 'Recommend key accords', 'Draft concept variations', 'Refine brief wording'],
-  ingredients: ['Suggest alternatives within a family', 'Explain ingredient roles', 'Find complementary materials', 'Compare olfactive profiles'],
-  formula: ['Propose formula tweaks as a reviewable diff', 'Explain accord balance', 'Suggest variations for review', 'Annotate the 3D exploration'],
+  concept: [
+    'Suggest creative directions from the brief',
+    'Recommend key accords',
+    'Draft concept variations',
+    'Refine brief wording',
+  ],
+  ingredients: [
+    'Suggest alternatives within a family',
+    'Explain ingredient roles',
+    'Find complementary materials',
+    'Compare olfactive profiles',
+  ],
+  formula: [
+    'Propose formula tweaks as a reviewable diff',
+    'Explain accord balance',
+    'Suggest variations for review',
+    'Annotate the 3D exploration',
+  ],
   validation: ['Explain computed findings in plain language', 'Point to missing evidence', 'Never computes compliance'],
   experiments: ['Summarise logged observations', 'Suggest next experiments to consider'],
   review: ['Summarise reviewer feedback', 'Draft review notes for a human to edit'],
@@ -29,7 +44,12 @@ const CAPABILITIES: Record<WorkspaceKey, string[]> = {
       <div class="head">
         <span class="spark"><lucide-icon [img]="I.Sparkles" [size]="18" /></span>
         <h2 class="grow">{{ title() }}</h2>
-        <button class="icon-btn" aria-label="Hide AI panel" (click)="ui.setAiPanel(workspace(), false)" data-testid="ai-panel-close">
+        <button
+          class="icon-btn"
+          aria-label="Hide AI panel"
+          (click)="ui.setAiPanel(workspace(), false)"
+          data-testid="ai-panel-close"
+        >
           <lucide-icon [img]="I.X" [size]="18" />
         </button>
       </div>
@@ -54,17 +74,21 @@ const CAPABILITIES: Record<WorkspaceKey, string[]> = {
       <div class="section-title" style="margin: 14px 0 8px">Planned for this workspace</div>
       <ul class="caps">
         @for (c of caps(); track c) {
-          <li><lucide-icon [img]="I.WandSparkles" [size]="15" /> <span>{{ c }}</span></li>
+          <li>
+            <lucide-icon [img]="I.WandSparkles" [size]="15" /> <span>{{ c }}</span>
+          </li>
         }
       </ul>
       <p class="tiny muted rule">
-        When enabled, every AI suggestion will appear as a pending proposal you can preview, accept or reject. Nothing is
-        applied automatically. Manual tools stay fully available.
+        When enabled, every AI suggestion will appear as a pending proposal you can preview, accept or reject. Nothing
+        is applied automatically. Manual tools stay fully available.
       </p>
 
       <div class="ask">
         <input class="input" disabled placeholder="Ask for ideas, variations…" aria-label="Ask AI (disabled)" />
-        <button class="btn primary icon" disabled aria-label="Send (disabled)"><lucide-icon [img]="I.Send" [size]="16" /></button>
+        <button class="btn primary icon" disabled aria-label="Send (disabled)">
+          <lucide-icon [img]="I.Send" [size]="16" />
+        </button>
       </div>
     </aside>
   `,

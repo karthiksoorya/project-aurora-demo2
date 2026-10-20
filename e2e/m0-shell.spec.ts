@@ -21,7 +21,7 @@ test.describe('M0 · foundation', () => {
   });
 
   test('exactly six workspace routes render inside one shared shell', async ({ page, net }) => {
-    await openApp(page);
+    await openApp(page, '/'); // landing redirect
     await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/concept$/);
     const nav = page.getByRole('navigation', { name: 'Workspace navigation' });
     await expect(nav.getByRole('link')).toHaveCount(6);

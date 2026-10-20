@@ -29,8 +29,22 @@ export const fam = (k: string): FamilyMeta =>
 
 export const ROLES: { key: NoteRole; label: string; window: string; color: string; tint: string; ink: string }[] = [
   { key: 'top', label: 'Top', window: 'conventional top-note role', color: '#2f80ff', tint: '#e5efff', ink: '#1d56c4' },
-  { key: 'heart', label: 'Heart', window: 'conventional heart-note role', color: '#22a35c', tint: '#e2f6ea', ink: '#167641' },
-  { key: 'base', label: 'Base', window: 'conventional base-note role', color: '#e66a2c', tint: '#ffece2', ink: '#a8461a' },
+  {
+    key: 'heart',
+    label: 'Heart',
+    window: 'conventional heart-note role',
+    color: '#22a35c',
+    tint: '#e2f6ea',
+    ink: '#167641',
+  },
+  {
+    key: 'base',
+    label: 'Base',
+    window: 'conventional base-note role',
+    color: '#e66a2c',
+    tint: '#ffece2',
+    ink: '#a8461a',
+  },
 ];
 export const role = (k: string) => ROLES.find((r) => r.key === k) ?? ROLES[0];
 

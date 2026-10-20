@@ -25,6 +25,7 @@ export interface FormulaUi {
   compareRightId: string | null;
   inspectorCompoundIngredientId: string | null;
   showGrams: boolean;
+  rightPanel: 'table' | 'inspector';
 }
 
 export interface IngredientsUi {
@@ -73,6 +74,7 @@ const DEFAULTS: Persisted = {
     compareRightId: null,
     inspectorCompoundIngredientId: null,
     showGrams: false,
+    rightPanel: 'table',
   },
   ingredients: {
     tab: 'universe',

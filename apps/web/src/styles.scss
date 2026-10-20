@@ -528,11 +528,27 @@ textarea {
   }
   h1 {
     font-size: 25px;
+    white-space: nowrap;
   }
   .sub {
     color: var(--ink-2);
     margin-left: 6px;
     font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+  .grow {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  > * {
+    flex-shrink: 0;
+  }
+  > .sub {
+    flex-shrink: 1;
   }
 }
 
@@ -598,4 +614,80 @@ textarea {
 * {
   scrollbar-width: thin;
   scrollbar-color: #cdd5e5 transparent;
+}
+
+/* ---------- Three.js overlay labels (created imperatively, so styled globally) ---------- */
+.three-stage {
+  position: relative;
+  overflow: hidden;
+  .three-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+  }
+  .three-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+}
+.three-label {
+  pointer-events: none;
+  font-family: var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  &.clickable {
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  &.card {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(220, 226, 240, 0.9);
+    border-radius: 10px;
+    padding: 7px 11px;
+    box-shadow: 0 6px 18px rgba(20, 40, 100, 0.12);
+    font-size: 12px;
+    line-height: 1.35;
+    b {
+      font-size: 13px;
+    }
+    .d {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .s {
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+  }
+  &.pill {
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 99px;
+    padding: 4px 11px;
+    font-size: 12px;
+    font-weight: 650;
+    box-shadow: 0 3px 10px rgba(20, 40, 100, 0.1);
+  }
+  &.name {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #33405f;
+    text-shadow:
+      0 0 4px #fff,
+      0 0 8px #fff;
+  }
+  &.sel {
+    outline: 2px solid var(--primary);
+  }
+}
+
+/* routed workspace hosts fill the content area (global: emulated encapsulation can't reach routed hosts) */
+main.content > :not(router-outlet) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
