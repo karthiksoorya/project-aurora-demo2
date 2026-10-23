@@ -1,5 +1,5 @@
-# Render Blueprint for a private, password-protected Aurora demo.
-# Render → New → Blueprint → pick this repository. You will be asked for AURORA_ACCESS_PASSWORD.
+# Render Blueprint for the Aurora demo (password gate currently OFF — anyone with the URL can use it).
+# Render → New → Blueprint → pick this repository.
 # One web service (NestJS API that also serves the built Angular app).
 # Storage: JSON file on the instance's temporary disk (no database) — data resets on every deploy, restart or
 # idle spin-down. For persistent data, add a PostgreSQL database and DATABASE_URL (see README).
@@ -22,8 +22,8 @@ services:
         value: "1"
       - key: AURORA_PERSISTENCE
         value: json
-      - key: AURORA_ACCESS_PASSWORD
-        sync: false            # entered in the Render dashboard, never stored in the repository
+      - key: AURORA_ACCESS_GATE
+        value: "off"           # password gate disabled for now; set to "on" (with AURORA_ACCESS_PASSWORD) to re-enable
       - key: AURORA_DATA_DIR
         value: /tmp/aurora-data  # demo data + uploads; temporary on Render (cleared on deploy/restart/spin-down)
 

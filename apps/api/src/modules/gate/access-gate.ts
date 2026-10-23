@@ -13,7 +13,8 @@ import { DomainError } from '../../common/errors';
 const COOKIE = 'aurora_access';
 const TTL_MS = 7 * 24 * 3600 * 1000;
 const password = () => process.env.AURORA_ACCESS_PASSWORD ?? '';
-export const gateEnabled = () => password().length > 0;
+/** AURORA_ACCESS_GATE=off disables the gate even when a password is configured. */
+export const gateEnabled = () => password().length > 0 && process.env.AURORA_ACCESS_GATE !== 'off';
 const key = () => createHash('sha256').update(`aurora-access-gate:${password()}`).digest();
 const sign = (exp: number) => createHmac('sha256', key()).update(String(exp)).digest('base64url');
 

@@ -91,7 +91,8 @@ For persistent data add a Render PostgreSQL database (or any PostgreSQL URL) as 
 3. After the first build (5–10 min) open `https://<service>.onrender.com`, enter the password, and share the
    URL + password with reviewers. Every push to the branch redeploys automatically.
 
-Safety: on Render (or with `AURORA_HOSTED=1`) the API refuses to start without `AURORA_ACCESS_PASSWORD`.
+Currently the gate is switched off in `render.yaml` (`AURORA_ACCESS_GATE=off`); set it to `on` and add
+`AURORA_ACCESS_PASSWORD` in Render to re-enable it.
 Notes: the gate is one shared password (HttpOnly cookie, 7 days; changing the password signs everyone out) —
 not user authentication; the simulated user switcher still applies inside. Free plans sleep after ~15 min idle
 so the demo data resets after idle periods.
