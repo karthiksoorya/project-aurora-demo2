@@ -15,3 +15,4 @@ e2e/shots/
 !.env.example
 .DS_Store
 Thumbs.db
+tools/demo/out/

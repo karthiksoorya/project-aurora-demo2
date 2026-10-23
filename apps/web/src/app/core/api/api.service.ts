@@ -1,3 +1,4 @@
+import { demoBackend } from '../demo/demo-mode';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom, type Observable } from 'rxjs';
@@ -68,7 +69,7 @@ export class ApiService {
     return this.call(this.http.post<Upload>(`${BASE}/projects/${projectId}/uploads`, fd));
   }
   uploadUrl(uploadId: string) {
-    return `${BASE}/uploads/${uploadId}`;
+    return demoBackend()?.uploadUrl(uploadId) || `${BASE}/uploads/${uploadId}`;
   }
   catalog() {
     return this.call(this.http.get<CatalogPage>(`${BASE}/ingredients?pageSize=200`));
