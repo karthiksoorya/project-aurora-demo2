@@ -3,12 +3,16 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { routes } from './app.routes';
 import { userHeaderInterceptor } from './core/auth/session-user.service';
+import { accessRequiredInterceptor } from './core/access/access-gate.service';
 import { demoBackendInterceptor, isDemoBuild } from './core/demo/demo-mode';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withFetch(), withInterceptors([userHeaderInterceptor, demoBackendInterceptor])),
+    provideHttpClient(
+      withFetch(),
+      withInterceptors([accessRequiredInterceptor, userHeaderInterceptor, demoBackendInterceptor]),
+    ),
     // the static demo is served as files without a server-side router, so it uses #/ URLs
     isDemoBuild()
       ? provideRouter(routes, withComponentInputBinding(), withHashLocation())

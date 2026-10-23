@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { requestContext } from './common/request-context';
 import { AccessController } from './modules/access/access.controller';
+import { AccessGateController, accessGate } from './modules/gate/access-gate';
 import { AiController } from './modules/ai/ai.controller';
 import { ExperimentsController, ExperimentsService } from './modules/experiments/experiments';
 import { ReviewsController, ReviewsService } from './modules/reviews/reviews';
@@ -24,6 +25,7 @@ import { CatalogRepository, UnitOfWork } from './persistence/repositories';
 @Module({
   controllers: [
     HealthController,
+    AccessGateController,
     AccessController,
     ProjectsController,
     IngredientsController,
@@ -49,6 +51,6 @@ import { CatalogRepository, UnitOfWork } from './persistence/repositories';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(requestContext).forRoutes('*path');
+    consumer.apply(accessGate, requestContext).forRoutes('*path');
   }
 }

@@ -1,4 +1,6 @@
 import {
+  Hexagon,
+  LockOpen,
   Activity,
   ArrowLeftRight,
   ArrowRight,
@@ -70,6 +72,8 @@ import {
 
 /** Icon registry (Lucide, ISC licence). Use with `<lucide-icon [img]="I.Save" [size]="16" />`. */
 export const I = {
+  Hexagon,
+  LockOpen,
   CircleHelp: CircleQuestionMark,
   Activity,
   ArrowLeftRight,
