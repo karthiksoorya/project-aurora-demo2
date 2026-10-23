@@ -1,6 +1,8 @@
 # Render Blueprint for a private, password-protected Aurora demo.
 # Render → New → Blueprint → pick this repository. You will be asked for AURORA_ACCESS_PASSWORD.
-# One web service (NestJS API that also serves the built Angular app) + one PostgreSQL database.
+# One web service (NestJS API that also serves the built Angular app).
+# Storage: JSON file on the instance's temporary disk (no database) — data resets on every deploy, restart or
+# idle spin-down. For persistent data, add a PostgreSQL database and DATABASE_URL (see README).
 services:
   - type: web
     name: aurora
@@ -18,19 +20,10 @@ services:
         value: 0.0.0.0         # Render routes traffic to the container; the access gate protects the app
       - key: AURORA_TRUST_PROXY
         value: "1"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: aurora-db
-          property: connectionString
+      - key: AURORA_PERSISTENCE
+        value: json
       - key: AURORA_ACCESS_PASSWORD
         sync: false            # entered in the Render dashboard, never stored in the repository
       - key: AURORA_DATA_DIR
-        value: /tmp/aurora-data  # uploads are temporary on Render (cleared on each deploy/restart)
+        value: /tmp/aurora-data  # demo data + uploads; temporary on Render (cleared on deploy/restart/spin-down)
 
-databases:
-  - name: aurora-db
-    plan: free                 # free databases expire after 30 days; use "basic-256mb" to keep data
-    region: singapore
-    databaseName: aurora
-    user: aurora
-    postgresMajorVersion: "16"

@@ -80,17 +80,20 @@ To run the browser suite on PostgreSQL: `E2E_DATABASE_URL=postgres://aurora:auro
 
 ## Deploy a password-protected demo to Render
 
-`render.yaml` describes one web service (the API also serves the built web app) and one PostgreSQL database.
+`render.yaml` describes one web service (the API also serves the built web app). It runs without a database:
+data lives in a JSON file on the instance's temporary disk and resets on every deploy, restart or idle spin-down.
+For persistent data add a Render PostgreSQL database (or any PostgreSQL URL) as `DATABASE_URL` and remove
+`AURORA_PERSISTENCE=json`.
 
 1. Push this repository to GitHub (private).
 2. On render.com: **New → Blueprint**, select the repository, and enter a password for
-   `AURORA_ACCESS_PASSWORD` when asked. Render creates `aurora` (web) and `aurora-db` (PostgreSQL).
+   `AURORA_ACCESS_PASSWORD` when asked. Render creates the `aurora` web service.
 3. After the first build (5–10 min) open `https://<service>.onrender.com`, enter the password, and share the
    URL + password with reviewers. Every push to the branch redeploys automatically.
 
 Notes: the gate is one shared password (HttpOnly cookie, 7 days; changing the password signs everyone out) —
 not user authentication; the simulated user switcher still applies inside. Free plans sleep after ~15 min idle
-and free databases expire after 30 days. Uploaded images are temporary on Render (no persistent disk).
+so the demo data resets after idle periods.
 Use synthetic data only.
 
 ## 2. What works (M1 + M2)
